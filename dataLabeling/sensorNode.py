@@ -6,7 +6,7 @@ How to run:
 
 conda activate frankapyenv
 source /opt/ros/noetic/setup.bash
-/home/mindlab/miniconda3/envs/frankapyenv/bin/python /home/mindlab/contactInterpretation/dataLabeling/digitalGloveNode.py
+/home/mindlab/miniconda3/envs/frankapyenv/bin/python /home/mindlab/humanObjectDetection/dataLabeling/sensorNode.py
 
 '''
 ## import required libraries 
@@ -17,9 +17,9 @@ import rospy
 from rospy_tutorials.msg import Floats
 from rospy.numpy_msg import numpy_msg
 
-class digital_glove():
+class sensor():
 	def __init__(self, channel_number = 0):
-		rospy.init_node('digital_glove', anonymous=True)
+		rospy.init_node('sensor', anonymous=True)
 		rospy.loginfo("***  ros node is created  ***")
 		self.pub = rospy.Publisher("/contactTimeIndex", numpy_msg(Floats), queue_size = 10)
 
@@ -67,7 +67,7 @@ class digital_glove():
 
 if __name__ == '__main__':
 	rate_value = 1000
-	dg = digital_glove(channel_number=1)
+	dg = sensor(channel_number=0)
 	rate = rospy.Rate(rate_value)
 
 	while not rospy.is_shutdown():

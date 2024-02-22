@@ -3,7 +3,7 @@
 
 # this model should be trained in the same conda environment which robot will be runned
 # conda activate frankapyenv
-#/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/AIModels/main.py
+#/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/AIModels/main.py
 
 from __future__ import print_function
 import os

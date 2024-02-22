@@ -18,7 +18,7 @@ By Maryam Rezayati
 3. run digital glove node
 	-open another temrinal
 		source /opt/ros/noetic/setup.bash
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python /home/mindlab/contactInterpretation/dataLabeling/digitalGloveNode.py
+		/home/mindlab/miniconda3/envs/frankapyenv/bin/python /home/mindlab/humanObjectDetection/dataLabeling/sensorNode.py
 
 4. run robot node
 	-open another terminal 
@@ -27,7 +27,7 @@ By Maryam Rezayati
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 	
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/frankaRobot/main.py
+		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main.py
 
 5. run save data node
 	-open another terminal
@@ -35,7 +35,7 @@ By Maryam Rezayati
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 	
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/frankaRobot/saveDataNode.py
+		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/saveDataNode.py
 
 # to chage publish rate of frankastate go to : 
 sudo nano /home/mindlab/franka/franka-interface/catkin_ws/src/franka_ros_interface/launch/franka_ros_interface.launch
@@ -80,7 +80,7 @@ features_num = 28
 dof = 7
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_02_22_2024_11:01:21.csv'
 
 # load model
 model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_path, num_features_lstm=num_features_lstm)
@@ -188,7 +188,7 @@ def move_robot(fa:FrankaArm, event: Event):
 	while True:	
 		try:	
 			for i in range(joints.shape[0]):
-				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=4)
+				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=1.5)
 				#time.sleep(0.01)
 
 		except Exception as e:

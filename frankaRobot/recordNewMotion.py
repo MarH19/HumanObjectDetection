@@ -21,7 +21,7 @@ How to run?
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 
-	    /home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/frankaRobot/recordNewMotion.py
+	    /home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/recordNewMotion.py
 
 '''
 import numpy as np

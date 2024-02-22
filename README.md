@@ -48,7 +48,7 @@ open an terminal
 open another temrinal
 
 	source /opt/ros/noetic/setup.bash
-	/home/mindlab/miniconda3/envs/frankapyenv/bin/python /home/mindlab/contactInterpretation/dataLabeling/digitalGloveNode.py
+	/home/mindlab/miniconda3/envs/frankapyenv/bin/python /home/mindlab/humanObjectDetection/dataLabeling/sensorNode.py
 
 #### 4th Step: run robot node
 
@@ -59,7 +59,7 @@ open another terminal
 	source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 	source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 	
-	/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/frankaRobot/main.py
+	/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main.py
 
 #### 5th Step: run save data node
 
@@ -69,7 +69,7 @@ open another terminal
 	source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 	source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 
-	/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/frankaRobot/saveDataNode.py
+	/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/saveDataNode.py
 
 
 ### to chage publish rate of frankastate go to : 
@@ -87,7 +87,7 @@ open a terminal
 
 	conda activate frankapyenv
 	source /opt/ros/noetic/setup.bash
-	/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/urRobot/main_ur10.py
+	/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/urRobot/main_ur10.py
 
 
 
@@ -116,4 +116,4 @@ open another terminal
 	source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 	source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 	
-	/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/frankaRobot/recordNewMotion.py
+	/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/recordNewMotion.py

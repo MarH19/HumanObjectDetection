@@ -30,7 +30,7 @@ How to Run:
         source /opt/ros/noetic/setup.bash
         source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
         source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
-        /home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/contactInterpretation/frankaRobot/saveDataNode.py
+        /home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/saveDataNode.py
 """
 
 ## Import required libraries 
@@ -45,7 +45,7 @@ import datetime
 import os
 
 # Set the default PATH
-PATH = '/home/mindlab/contactInterpretation/frankaRobot/DATA/'
+PATH = '/home/mindlab/robotHumanObjectDetectionDataset/20240222/'
 
 # Prompt the user to enter a tag name for data labeling
 folder_name = input('Enter tag name: ')
