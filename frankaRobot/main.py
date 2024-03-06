@@ -15,19 +15,19 @@ By Maryam Rezayati
 		conda activate frankapyenv
 		bash /home/mindlab/franka/frankapy/bash_scripts/start_control_pc.sh -i localhost
 
-3. run digital glove node
+3. run sensor node
 	-open another temrinal
 		source /opt/ros/noetic/setup.bash
 		/home/mindlab/miniconda3/envs/frankapyenv/bin/python /home/mindlab/humanObjectDetection/dataLabeling/sensorNode.py
 
 4. run robot node
-	-open another terminal 
 		conda activate frankapyenv
 		source /opt/ros/noetic/setup.bash
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 	
 		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main.py
+	-open another terminal 
 
 5. run save data node
 	-open another terminal
@@ -65,14 +65,14 @@ main_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 
 # Define parameters for the LSTM models
 num_features_lstm = 4
-#contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_06_30_2023_10:16:53.pth'
-contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_01_24_2024_11:18:01.pth'
+#contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_06_30_2023_10_16_53.pth'
+contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_01_24_2024_11_18_01.pth'
 
-#collision_detection_path = main_path + 'AIModels/trainedModels/collisionDetection/trainedModel_06_30_2023_09:07:24.pth'
-collision_detection_path = main_path + 'AIModels/trainedModels/collisionDetection/trainedModel_01_24_2024_11:12:30.pth'
+#collision_detection_path = main_path + 'AIModels/trainedModels/collisionDetection/trainedModel_06_30_2023_09_07_24.pth'
+collision_detection_path = main_path + 'AIModels/trainedModels/collisionDetection/trainedModel_01_24_2024_11_12_30.pth'
 
-#localization_path = main_path + 'AIModels/trainedModels/localization/trainedModel_06_30_2023_09:08:08.pth'
-localization_path = main_path + 'AIModels/trainedModels/localization/trainedModel_01_24_2024_11:15:06.pth'
+#localization_path = main_path + 'AIModels/trainedModels/localization/trainedModel_06_30_2023_09_08_08.pth'
+localization_path = main_path + 'AIModels/trainedModels/localization/trainedModel_01_24_2024_11_15_06.pth'
 
 
 window_length = 28
@@ -80,7 +80,7 @@ features_num = 28
 dof = 7
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_02_22_2024_11:01:21.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_03_06_2024_16:06:15.csv'
 
 # load model
 model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_path, num_features_lstm=num_features_lstm)
@@ -188,7 +188,7 @@ def move_robot(fa:FrankaArm, event: Event):
 	while True:	
 		try:	
 			for i in range(joints.shape[0]):
-				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=1.5)
+				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=2)
 				#time.sleep(0.01)
 
 		except Exception as e:
