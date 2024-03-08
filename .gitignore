@@ -4,4 +4,3 @@ dataExploration/dataset/
 dataset/
 build/
 __pycache__/
-*.egg-info/
