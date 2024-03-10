@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import json
 
 
 class MakeFolderDataset:
@@ -28,6 +29,13 @@ class MakeFolderDataset:
         self.de = ['de0', 'de1', 'de2', 'de3', 'de4', 'de5', 'de6']
         self.etau = ['etau_J0', 'etau_J1', 'etau_J2',
                      'etau_J3', 'etau_J4', 'etau_J5', 'etau_J6']
+
+        self.first_contact_start_time = None
+        self.window_size = None
+
+        with open(str((self.path / 'meta.json').absolute())) as meta_json:
+            meta_data = json.load(meta_json)
+            self.contact_type = meta_data['contact_type']
 
     def _extract_array(self, data_dict: dict, data_frame: str, header: list,  n: int):
         _, y = data_frame[n].split(':')
