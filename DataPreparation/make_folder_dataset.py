@@ -74,7 +74,7 @@ class MakeFolderDataset:
             self._extract_array(data_dict, data_frame, self.dq_d, 31)
 
         self.df = pd.DataFrame.from_dict(data_dict)
-        self.df = self.df.drop(index=0).reset_index()
+        self.df = self.df.drop(index=0).reset_index(drop=True)
         for i in range(len(self.e)):
             self.df[self.e[i]] = self.df[self.q_d[i]]-self.df[self.q[i]]
             self.df[self.de[i]] = self.df[self.dq_d[i]]-self.df[self.dq[i]]
