@@ -45,7 +45,7 @@ import datetime
 import os
 
 # Set the default PATH
-PATH = '/home/mindlab/robotHumanObjectDetectionDataset/20240306/'
+PATH = '/home/mindlab/robotHumanObjectDetectionDataset/20240316/'
 
 # Prompt the user to enter a tag name for data labeling
 folder_name = input('Enter tag name: ')

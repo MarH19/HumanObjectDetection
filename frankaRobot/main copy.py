@@ -59,20 +59,17 @@ from franka_interface_msgs.msg import RobotState
 from threading import Thread
 from threading import Event
 from importModel import import_lstm_models
-
+from model_generation import LSTMModel
 # Set the main path
 main_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 
 # Define parameters for the LSTM models
 num_features_lstm = 4
+
 #contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_06_30_2023_10_16_53.pth'
 contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_01_24_2024_11_18_01.pth'
 
-#collision_detection_path = main_path + 'AIModels/trainedModels/collisionDetection/trainedModel_06_30_2023_09_07_24.pth'
-collision_detection_path = main_path + 'AIModels/trainedModels/collisionDetection/trainedModel_01_24_2024_11_12_30.pth'
-
-#localization_path = main_path + 'AIModels/trainedModels/localization/trainedModel_06_30_2023_09_08_08.pth'
-localization_path = main_path + 'AIModels/trainedModels/localization/trainedModel_01_24_2024_11_15_06.pth'
+classification_path = main_path + 'lstm_model.pth'
 
 
 window_length = 28
@@ -80,12 +77,13 @@ features_num = 28
 dof = 7
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_c4.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_03_06_2024_16_06_15.csv'
 
 # load model
 model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_path, num_features_lstm=num_features_lstm)
-model_collision, labels_map_collision = import_lstm_models(PATH=collision_detection_path, num_features_lstm=num_features_lstm)
-model_localization, labels_map_localization = import_lstm_models(PATH=localization_path, num_features_lstm=num_features_lstm)
+
+model_classification = LSTMModel(input_size=7, hidden_size=64, num_layers=1, output_size=1)
+model_classification.load_state_dict(torch.load(classification_path))
 
 # Set device for PyTorch models
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -94,8 +92,7 @@ if device.type == "cuda":
 
 # Move PyTorch models to the selected device
 model_contact = model_contact.to(device)
-model_collision = model_collision.to(device)
-model_localization = model_localization.to(device)
+model_classification = model_classification.to(device)
 
 # Define transformation for input data
 transform = transforms.Compose([transforms.ToTensor()])
@@ -145,32 +142,27 @@ def contact_detection(data):
 	contact = output.cpu().numpy()[0]
 	if contact == 1:
 		with torch.no_grad():
-			model_out = model_collision(data_input)
+			model_out = model_classification(data_input)
 			model_out = model_out.detach()
+			predictions = (outputs.squeeze() > 0.5).cpu().numpy()  # Convert to binary predictions
 			output = torch.argmax(model_out, dim=1)
 			collision = output.cpu().numpy()[0]
 
-			model_out = model_localization(data_input)
-			model_out = model_out.detach()
-			output = torch.argmax(model_out, dim=1)
-			localization = output.cpu().numpy()[0]
 		detection_duration  = rospy.get_time()-start_time
-		rospy.loginfo('detection duration: %f, There is a: %s on %s',detection_duration, labels_map_collision[collision], labels_map_localization[localization])
+		rospy.loginfo('detection duration: %f, There is a: %s',detection_duration, labels_map_collision[collision])
 		#rospy.loginfo(np.array([detection_duration, contact, collision, localization, window]))
 		#publish_output.publish([detection_duration, contact, collision, localization])
 		
 
 	else:
 		detection_duration  = rospy.get_time()-start_time
-		collision = contact
-		localization = contact
 		rospy.loginfo('detection duration: %f, there is no contact',detection_duration)
 		#publish_output.publish([detection_duration, contact, contact, contact])
 	start_time = np.array(start_time).tolist()
 	time_sec = int(start_time)
 	time_nsec = start_time-time_sec
-	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, collision, localization], dtype=np.complex128), np.hstack(window))
-	#model_pub.publish(model_msg)
+	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, collision], dtype=np.complex128), np.hstack(window))
+	model_pub.publish(model_msg)
 	
 
 
