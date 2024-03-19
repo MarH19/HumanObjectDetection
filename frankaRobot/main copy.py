@@ -77,15 +77,20 @@ features_num = 28
 dof = 7
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_03_06_2024_16_06_15.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_a2.csv'
 
 # load model
 model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_path, num_features_lstm=num_features_lstm)
 
 model_classification = LSTMModel(input_size=7, hidden_size=64, num_layers=1, output_size=1)
 model_classification.load_state_dict(torch.load(classification_path))
+model_classification.eval()
+labels = {
+	0:"hard",
+	1:"soft"
+}
 
-# Set device for PyTorch models
+# Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device.type == "cuda":
 	torch.cuda.get_device_name()
@@ -108,6 +113,7 @@ def contact_detection(data):
 	e_q = np.array(data.q_d) - np.array(data.q)
 	e_dq = np.array(data.dq_d ) - np.array(data.dq)
 	tau_J = np.array(data.tau_J) # we also have tau_J_d
+	etau = np.array(data.tau_J_d) - np.array(data.tau_J)
 	tau_ext = np.array(data.tau_ext_hat_filtered)
 	tau_ext = np.multiply(tau_ext, 0.5)
 
