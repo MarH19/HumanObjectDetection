@@ -30,12 +30,10 @@ class MakeFolderDataset:
         self.etau = ['etau_J0', 'etau_J1', 'etau_J2',
                      'etau_J3', 'etau_J4', 'etau_J5', 'etau_J6']
 
-        self.first_contact_start_time = None
-        self.window_size = None
-
         with open(str((self.path / 'meta.json').absolute())) as meta_json:
             meta_data = json.load(meta_json)
             self.contact_type = meta_data['contact_type']
+            self.start_from_time = meta_data['start_from_time'] if 'start_from_time' in meta_data else -1
 
     def _extract_array(self, data_dict: dict, data_frame: str, header: list,  n: int):
         _, y = data_frame[n].split(':')
