@@ -64,7 +64,7 @@ from importModel import import_lstm_models
 main_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_02_22_2024_11:01:21.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_c4.csv'
 
 def move_robot(fa:FrankaArm, event: Event):
 
