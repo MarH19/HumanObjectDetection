@@ -40,6 +40,7 @@ def move_robot(fa: FrankaArm, duration: float):
     try:
         fa.run_guide_mode(duration=duration)
     except Exception as e:
+        print("error")
         print(e)
     print('Exit thread!')
 
@@ -49,6 +50,7 @@ if __name__ == '__main__':
 
     # Get user input for the duration of robot motion
     duration = float(input('How long does it take to put the robot in the desired positions? (sec)   '))
+
 
     # Create a thread for robot motion
     thread_move_robot = Thread(target=move_robot, args=[fa, duration])

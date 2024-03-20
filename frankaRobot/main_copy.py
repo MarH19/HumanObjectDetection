@@ -26,8 +26,8 @@ By Maryam Rezayati
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 	
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main.py
-	-open another terminal 
+		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_copy.py
+	
 
 5. run save data node
 	-open another terminal
@@ -69,15 +69,17 @@ num_features_lstm = 4
 #contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_06_30_2023_10_16_53.pth'
 contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_01_24_2024_11_18_01.pth'
 
-classification_path = main_path + 'lstm_model.pth'
+classification_path = main_path + 'lstm_model1.pth'
 
 
-window_length = 28
-features_num = 28
+window_length = 28 # for 0.2 window frame --> 40 with 200Hz frequency
+features_num = 28 # 4 variables are and 7 joints -> 4*7 = 28
+features_num_classification = 7
 dof = 7
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_a2.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_b11.csv'
+
 
 # load model
 model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_path, num_features_lstm=num_features_lstm)
@@ -85,7 +87,7 @@ model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_pa
 model_classification = LSTMModel(input_size=7, hidden_size=64, num_layers=1, output_size=1)
 model_classification.load_state_dict(torch.load(classification_path))
 model_classification.eval()
-labels = {
+labels_classification = {
 	0:"hard",
 	1:"soft"
 }
@@ -102,18 +104,18 @@ model_classification = model_classification.to(device)
 # Define transformation for input data
 transform = transforms.Compose([transforms.ToTensor()])
 window = np.zeros([window_length, features_num])
-
+window_classification = np.zeros([window_length,features_num_classification])
 # Create message for publishing model output (will be used in saceDataNode.py)
 model_msg = Floats()
 
 # Callback function for contact detection
 def contact_detection(data):
-	global window, publish_output, big_time_digits
+	global window, publish_output, big_time_digits 
+	global window_classification
 	start_time = rospy.get_time()
 	e_q = np.array(data.q_d) - np.array(data.q)
 	e_dq = np.array(data.dq_d ) - np.array(data.dq)
-	tau_J = np.array(data.tau_J) # we also have tau_J_d
-	etau = np.array(data.tau_J_d) - np.array(data.tau_J)
+	tau_J = np.array(data.tau_J) 
 	tau_ext = np.array(data.tau_ext_hat_filtered)
 	tau_ext = np.multiply(tau_ext, 0.5)
 
@@ -139,8 +141,15 @@ def contact_detection(data):
 
 	lstmDataWindow = np.vstack(lstmDataWindow)
 
+	# data input prep for classification 
+	etau = np.array(data.tau_J_d) - np.array(data.tau_J) # classification model trained on
+	etau = etau.reshape((1,features_num_classification))
+	window_classification = np.append(window_classification[1:,:],etau,axis=0)
+	
+	etau_tensor = torch.tensor(window_classification,dtype=torch.float32).unsqueeze(0).to(device) # gives (1,window_size,feature_number)
+	
 	with torch.no_grad():
-		data_input = transform(lstmDataWindow).to(device).float()
+		data_input = transform(lstmDataWindow).to(device).float() # mit torch.tensor(X_test, dtype=torch.float32) ausprobieren
 		model_out = model_contact(data_input)
 		model_out = model_out.detach()
 		output = torch.argmax(model_out, dim=1)
@@ -148,26 +157,23 @@ def contact_detection(data):
 	contact = output.cpu().numpy()[0]
 	if contact == 1:
 		with torch.no_grad():
-			model_out = model_classification(data_input)
-			model_out = model_out.detach()
-			predictions = (outputs.squeeze() > 0.5).cpu().numpy()  # Convert to binary predictions
-			output = torch.argmax(model_out, dim=1)
-			collision = output.cpu().numpy()[0]
-
+			model_out = model_classification(etau_tensor)
+			classification = (model_out.squeeze() > 0.5).cpu().numpy()  # Convert to binary predictions
+			
 		detection_duration  = rospy.get_time()-start_time
-		rospy.loginfo('detection duration: %f, There is a: %s',detection_duration, labels_map_collision[collision])
-		#rospy.loginfo(np.array([detection_duration, contact, collision, localization, window]))
-		#publish_output.publish([detection_duration, contact, collision, localization])
+		rospy.loginfo(f'detection duration: {detection_duration}, There is a {labels_classification[int(classification)]} contact')
+	
 		
 
 	else:
 		detection_duration  = rospy.get_time()-start_time
-		rospy.loginfo('detection duration: %f, there is no contact',detection_duration)
+		classification = 2 # hard = 0 soft = 1
+		#rospy.loginfo('detection duration: %f, there is no contact',detection_duration)
 		#publish_output.publish([detection_duration, contact, contact, contact])
 	start_time = np.array(start_time).tolist()
 	time_sec = int(start_time)
 	time_nsec = start_time-time_sec
-	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, collision], dtype=np.complex128), np.hstack(window))
+	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, classification], dtype=np.complex128), np.hstack(window))
 	model_pub.publish(model_msg)
 	
 
@@ -186,7 +192,7 @@ def move_robot(fa:FrankaArm, event: Event):
 	while True:	
 		try:	
 			for i in range(joints.shape[0]):
-				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=2)
+				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=1.5)
 				#time.sleep(0.01)
 
 		except Exception as e:
