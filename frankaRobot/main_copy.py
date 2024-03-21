@@ -59,7 +59,7 @@ from franka_interface_msgs.msg import RobotState
 from threading import Thread
 from threading import Event
 from importModel import import_lstm_models
-from model_generation import LSTMModel
+from ModelGeneration.model_generation import LSTMModel
 # Set the main path
 main_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 
@@ -69,7 +69,7 @@ num_features_lstm = 4
 #contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_06_30_2023_10_16_53.pth'
 contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_01_24_2024_11_18_01.pth'
 
-classification_path = main_path + 'lstm_model1.pth'
+classification_path = main_path + 'ModelGeneration/lstm_model1.pth'
 
 
 window_length = 28 # for 0.2 window frame --> 40 with 200Hz frequency
