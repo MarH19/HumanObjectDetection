@@ -51,7 +51,7 @@ from datetime import datetime
 contact_type_shorts = {"s": "soft", "h": "hard"}
 
 # Set base path for saving data
-#ROOT_PATH = '/home/mindlab/humanObjectDetectionDataset/rawData'
+#ROOT_PATH = Path('/home/mindlab/humanObjectDetectionDataset/rawData')
 ROOT_PATH = Path("C:\\Users\\juhe9\\repos\\MasterProject\\humanObjectDetectionDataset\\rawData")
 
 # Prompt the user to enter a tag name and contact type
