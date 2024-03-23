@@ -80,7 +80,8 @@ features_num = 28
 dof = 7
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_c4.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_a2.csv'
+#joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_c4.csv'
 
 # load model
 model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_path, num_features_lstm=num_features_lstm)
