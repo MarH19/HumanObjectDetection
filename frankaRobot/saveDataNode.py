@@ -44,15 +44,15 @@ from franka_interface_msgs.msg import RobotState
 import csv
 import os
 import json
-import git
 from pathlib import Path
+from datetime import datetime
 
 
 contact_type_shorts = {"s": "soft", "h": "hard"}
 
-# Set base path for saving data as <repository-root>/dataset/
-git_repo = git.Repo(os.getcwd(), search_parent_directories=True)
-ROOT_PATH = Path(git_repo.git.rev_parse("--show-toplevel")) / "dataset"
+# Set base path for saving data
+#ROOT_PATH = '/home/mindlab/humanObjectDetectionDataset/rawData'
+ROOT_PATH = Path("C:\\Users\\juhe9\\repos\\MasterProject\\humanObjectDetectionDataset\\rawData")
 
 # Prompt the user to enter a tag name and contact type
 FOLDER_TAG = input('Enter tag name: ')
@@ -87,7 +87,10 @@ class LogData:
         self.model_results_file.writerow(
             ('Time_sec', 'Time_nsec', 'prediction_duration', 'contact_out', 'collision_out', 'localization_out'))
 
-        meta_data = {"contact_type": contact_type, "start_from_time": -1}
+        meta_data = {
+            "date": datetime.now().strftime('%Y-%m-%d'),
+            "contact_type": contact_type, 
+            "start_from_time": -1 }
         with open(meta_path, 'w') as f:
             json.dump(meta_data, f, indent=4)
 
