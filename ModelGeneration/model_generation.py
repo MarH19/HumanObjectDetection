@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold
 
-
+# comment Justin: LSTM seems like a good fit, maybe GRU would be worth a try to avoid overfitting (since they're simpler)
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
         super(LSTMModel, self).__init__()
@@ -25,7 +25,7 @@ class LSTMModel(nn.Module):
             0), self.hidden_size).to(x.device)
         out, _ = self.lstm(x, (h0, c0))
         out = self.fc(out[:, -1, :])
-        out = self.sigmoid(out)
+        out = self.sigmoid(out) # comment Justin: same as for loss func below, does it make more sense to use BCEWithLogitsLoss instead and not add sigmoid manually?
         return out
 
 
@@ -47,6 +47,7 @@ def train_val(X, y, k=5):
                 y_val_fold = y[val_indices]
 
                 # Define model parameters
+                # comment Justin: would it be worth a try to also tune the hidden_size and num_layers via k-fold val.?
                 input_size = 7  # number of features
                 hidden_size = 64  # number of LSTM units
                 num_layers = 1  # number of LSTM layers
@@ -68,7 +69,7 @@ def train_val(X, y, k=5):
                     y_val_fold, dtype=torch.float32).unsqueeze(1).to(device)
 
                 # Define loss function and optimizer
-                criterion = nn.BCELoss()
+                criterion = nn.BCELoss() # comment Justin: should we not use BCEWithLogitsLoss instead, since it's apparently more stable (DL lecture and torch doc.). Or does this not apply to LSTM models? 
                 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
                 # Train the model
