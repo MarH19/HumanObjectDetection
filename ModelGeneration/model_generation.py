@@ -25,7 +25,7 @@ class LSTMModel(nn.Module):
             0), self.hidden_size).to(x.device)
         out, _ = self.lstm(x, (h0, c0))
         out = self.fc(out[:, -1, :])
-        out = self.sigmoid(out) # comment Justin: same as for loss func below, does it make more sense to use BCEWithLogitsLoss instead and not add sigmoid manually?
+        out = self.sigmoid(out)
         return out
 
 
@@ -69,7 +69,7 @@ def train_val(X, y, k=5):
                     y_val_fold, dtype=torch.float32).unsqueeze(1).to(device)
 
                 # Define loss function and optimizer
-                criterion = nn.BCELoss() # comment Justin: should we not use BCEWithLogitsLoss instead, since it's apparently more stable (DL lecture and torch doc.). Or does this not apply to LSTM models? 
+                criterion = nn.BCELoss() 
                 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
                 # Train the model
@@ -189,6 +189,9 @@ if __name__ == '__main__':
     y_encoded = label_encoder.fit_transform(y)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y_encoded, test_size=0.2, random_state=42)
+    
+    # comment Justin: ToDo: normalize data (need to do this here instead of in data preparation,
+    # because need to calculate normalization values only on training set and the apply same values to test set)
 
     e, lr = train_val(X_train, y_train, k=5)  # k-fold cross validation
     print(
