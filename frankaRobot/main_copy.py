@@ -70,7 +70,7 @@ num_features_lstm = 4
 #contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_06_30_2023_10_16_53.pth'
 contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_01_24_2024_11_18_01.pth'
 
-classification_path = main_path + 'ModelGeneration/lstm_model1.pth'
+classification_path = main_path + 'ModelGeneration/lstm_model_c4hard.pth'
 
 
 window_length = 28 # for 0.2 window frame --> 40 with 200Hz frequency

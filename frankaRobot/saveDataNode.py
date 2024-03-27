@@ -48,7 +48,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-contact_type_shorts = {"s": "soft", "h": "hard"}
+contact_type_shorts = {"s": "soft", "h": "hard", "p": "plasticbottle"}
 
 # Set base path for saving data
 ROOT_PATH = Path('/home/mindlab/humanObjectDetectionDataset/rawData')
@@ -57,7 +57,7 @@ ROOT_PATH = Path('/home/mindlab/humanObjectDetectionDataset/rawData')
 # Prompt the user to enter a tag name and contact type
 FOLDER_TAG = input('Enter tag name: ')
 
-contact_type = input("Enter contact type (soft: s / hard: h): ")
+contact_type = input("Enter contact type (soft: s / hard: h / plastic bottle: p): ")
 contact_type = contact_type_shorts[contact_type.lower()]
 
 

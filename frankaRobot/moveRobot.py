@@ -64,7 +64,7 @@ from importModel import import_lstm_models
 main_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_c4.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_a4.csv'
 
 def move_robot(fa:FrankaArm, event: Event):
 
@@ -80,7 +80,7 @@ def move_robot(fa:FrankaArm, event: Event):
 	while True:	
 		try:	
 			for i in range(joints.shape[0]):
-				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=1.75)
+				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=2.25)
 				#time.sleep(0.01)
 			rospy.loginfo("move")
 
