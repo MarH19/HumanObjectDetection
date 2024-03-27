@@ -42,14 +42,14 @@ sudo nano /home/mindlab/franka/franka-interface/catkin_ws/src/franka_ros_interfa
 """
 
 ## import required libraries 
+import sys,os
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__)))) 
+
 import os
 import numpy as np
 import pandas as pd
-import time
-
 import torch
 from torchvision import transforms
-
 import rospy
 from std_msgs.msg import Float64
 from rospy_tutorials.msg import Floats
@@ -60,6 +60,7 @@ from threading import Thread
 from threading import Event
 from importModel import import_lstm_models
 from ModelGeneration.model_generation import LSTMModel
+
 # Set the main path
 main_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 
@@ -78,7 +79,7 @@ features_num_classification = 7
 dof = 7
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_b11.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_c4.csv'
 
 
 # load model
@@ -192,7 +193,7 @@ def move_robot(fa:FrankaArm, event: Event):
 	while True:	
 		try:	
 			for i in range(joints.shape[0]):
-				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=1.5)
+				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=1.75)
 				#time.sleep(0.01)
 
 		except Exception as e:

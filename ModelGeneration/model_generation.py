@@ -6,6 +6,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold
+from pathlib import Path
+
 
 # comment Justin: LSTM seems like a good fit, maybe GRU would be worth a try to avoid overfitting (since they're simpler)
 class LSTMModel(nn.Module):
@@ -35,7 +37,7 @@ def train_val(X, y, k=5):
     epoch_best = 0
     learning_rate_best = 0
     current_best_val_score = np.inf
-    for epochs in range(100, 351, 50):
+    for epochs in range(100, 251, 50):
         for learning_rate in [0.001, 0.01, 0.1]:
             print(
                 f"run with {epochs} epochs and {learning_rate} learning rate")
@@ -180,8 +182,10 @@ if __name__ == '__main__':
 
     # Print the device being used
     print('Using device:', device)
-    X = np.load(r"DataPreparation\x_data_all_withoutc4hard.npy")
-    y = np.load(r"DataPreparation\y_data_all_withoutc4hard.npy")
+
+    folder_path = Path('/home/mindlab/humanObjectDetectionDataset/processedData')
+    X = np.load(str((folder_path / "x_data.npy").absolute()))
+    y = np.load(str((folder_path / "y_data.npy").absolute()))
     # X = np.load("DataPreparation/x_data.npy")
     # y = np.load("DataPreparation/y_data.npy")
 
