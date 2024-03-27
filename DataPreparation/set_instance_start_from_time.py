@@ -1,6 +1,4 @@
-import git
 import json
-import os
 from pathlib import Path
 
 
@@ -12,8 +10,8 @@ def isfloat(num):
         return False
 
 
-git_repo = git.Repo(os.getcwd(), search_parent_directories=True)
-dataset_path = Path(git_repo.git.rev_parse("--show-toplevel")) / "dataset"
+root_path = Path('/home/mindlab/humanObjectDetectionDataset')
+dataset_path = root_path / "rawData"
 instance_paths = dict([(str(i), p)
                        for i, p in enumerate(dataset_path.iterdir()) if p.is_dir() and not p.name == "_ignore"])
 
