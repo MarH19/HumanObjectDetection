@@ -10,8 +10,7 @@ def isfloat(num):
         return False
 
 
-root_path = Path('/home/mindlab/humanObjectDetectionDataset')
-dataset_path = root_path / "rawData"
+dataset_path = Path('/home/mindlab/humanObjectDetectionDataset') / "rawData"
 instance_paths = dict([(str(i), p)
                        for i, p in enumerate(dataset_path.iterdir()) if p.is_dir() and not p.name == "_ignore"])
 
