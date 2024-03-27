@@ -135,7 +135,7 @@ def train(X_train, y_train, epochs, learning_rate):
         print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
     torch.save(model.state_dict(),
-               'ModelGeneration/lstm_model_all_withoutc4hard.pth')
+               'ModelGeneration/lstm_model_c4hard.pth')
     epochs_list = list(range(1, epochs + 1))
     make_plot(epochs_list, loss_values)
 
@@ -159,7 +159,7 @@ def evaluate(X_test, y_test):
     model = LSTMModel(input_size=7, hidden_size=64,
                       num_layers=1, output_size=1)
     model.load_state_dict(torch.load(
-        'ModelGeneration/lstm_model_all_withoutc4hard.pth'))
+        'ModelGeneration/lstm_model_c4hard.pth'))
     model.eval()
 
     # Convert numpy arrays to PyTorch tensors
@@ -184,10 +184,10 @@ if __name__ == '__main__':
     print('Using device:', device)
 
     folder_path = Path('/home/mindlab/humanObjectDetectionDataset/processedData')
-    X = np.load(str((folder_path / "x_data.npy").absolute()))
-    y = np.load(str((folder_path / "y_data.npy").absolute()))
-    # X = np.load("DataPreparation/x_data.npy")
-    # y = np.load("DataPreparation/y_data.npy")
+    #X = np.load(str((folder_path / "x_data.npy").absolute()))
+    #y = np.load(str((folder_path / "y_data.npy").absolute()))
+    X = np.load("DataPreparation/x_data.npy")
+    y = np.load("DataPreparation/y_data.npy")
 
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
