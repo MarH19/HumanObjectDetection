@@ -64,58 +64,57 @@ void setup()
    
 }
 
-unsigned int data[5] = {0, 0, 0, 0, 0};
-unsigned int data_old[5] = {0, 0, 0, 0, 0};
+unsigned int data[1] = {0};
+unsigned int data_old[1] = {0};
 //unsigned int fingers[5] = {A3, 12, A0, A1, A2};
 
-%configure the pinout according to your hardware setup
+//configure the pinout according to your hardware setup
 
-unsigned int fingers[5] = {A2, A1, A0, digital_pin, A3};
+unsigned int sensors[1] = {A2};
 
 int adc_data;
 #define alpha  0.7
 
-#define finger_numbers 5
+#define finger_numbers 1
 #define show_raw_data 0 // change it to 1 for showing the raw data
 #define serial_on 0 // change it to 1 for prining data on serial monitor
-#define limit_val 10
+#define limit_val 200
 
 bool contactState = false;
 
 void loop()
 {
-    unsigned char dataSend2CAN[5] = {0, 0, 0, 0, 0};
+    unsigned char dataSend2CAN[1] = {0};
     
-    for(int i = 0; i<finger_numbers ; i++){
-        if(fingers[i] == digital_pin)
-          data[i] =  digitalRead(fingers[i]) + limit_val;
-        else{
-          adc_data = analogRead(fingers[i]);
-          data[i] = (1-alpha)* adc_data + alpha * data_old[i];
-          data_old[i] = data[i];//adc_data;
-        }
-        
-        if(data[i] > limit_val & show_raw_data ==0){
-          if(serial_on ==1){
-            Serial.print("A contact is detected in finger number");
-            Serial.println(i+1);
-          }
-          dataSend2CAN[i] = 1;
-          contactState = true;
-        }
-        if(show_raw_data ==1){
-          Serial.print(data[i]);
-          Serial.print("  ,   ");
-          if(i==finger_numbers-1)
-            Serial.println( "  ;");
-        }
+    int i = 0;
+    if(sensors[i] == digital_pin)
+      data[i] =  digitalRead(sensors[i]) + limit_val;
+    else{
+      adc_data = analogRead(sensors[i]);
+      data[i] = (1-alpha)* adc_data + alpha * data_old[i];
+      data_old[i] = data[i];//adc_data;
+    }
+    
+    if(data[i] > limit_val & show_raw_data ==0){
+      if(serial_on ==1){
+        Serial.print("A contact is detected in finger number");
+        Serial.println(i+1);
+      }
+      dataSend2CAN[i] = 1;
+      contactState = true;
+    }
+    if(show_raw_data ==1){
+      Serial.print(data[i]);
+      Serial.print("  ,   ");
+      if(i==finger_numbers-1)
+        Serial.println( "  ;");
     }
     
     if(contactState){
       if(serial_on ==1){
         Serial.println("Sending data to computer");
       }
-      CAN.sendMsgBuf(0x00, 0, 5, dataSend2CAN);
+      CAN.sendMsgBuf(0x00, 0, 1, dataSend2CAN);
     }
     contactState = false;
     //delay(1000);                       // send data per 1000ms
