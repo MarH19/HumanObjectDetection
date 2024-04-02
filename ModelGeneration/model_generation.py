@@ -1,13 +1,16 @@
+import os
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
-import torch.optim as optim
 import torch
 import torch.nn as nn
+import torch.optim as optim
+from dotenv import find_dotenv, load_dotenv
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
-from sklearn.model_selection import KFold
-from pathlib import Path
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
 
 # comment Justin: LSTM seems like a good fit, maybe GRU would be worth a try to avoid overfitting (since they're simpler)
 class LSTMModel(nn.Module):
@@ -18,7 +21,7 @@ class LSTMModel(nn.Module):
         self.lstm = nn.LSTM(input_size, hidden_size,
                             num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, output_size)
-        #self.sigmoid = nn.Sigmoid()
+        # self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -28,12 +31,12 @@ class LSTMModel(nn.Module):
             0), self.hidden_size).to(x.device)
         out, _ = self.lstm(x, (h0, c0))
         out = self.fc(out[:, -1, :])
-        #out = self.sigmoid(out)
+        # out = self.sigmoid(out)
         out = self.softmax(out)
         return out
 
 
-def train_val(X, y, k=5,output=1):
+def train_val(X, y, k=5, output=1):
     kf = KFold(n_splits=k, shuffle=True)
 
     epoch_best = 0
@@ -44,8 +47,9 @@ def train_val(X, y, k=5,output=1):
     for epochs in range(50, 101, 50):
         for learning_rate in [0.001, 0.01, 0.1]:
             for n_layers in [1, 2, 3, 4]:
-                for hidden_s in [32, 64, 128]: 
-                    print(f"run with {epochs} epochs, {learning_rate} learning rate, {n_layers} layers, and {hidden_s} hidden units")
+                for hidden_s in [32, 64, 128]:
+                    print(
+                        f"run with {epochs} epochs, {learning_rate} learning rate, {n_layers} layers, and {hidden_s} hidden units")
                     validation_losses = []
                     for fold, (train_indices, val_indices) in enumerate(kf.split(X)):
                         X_train_fold = X[train_indices]
@@ -62,11 +66,11 @@ def train_val(X, y, k=5,output=1):
 
                         # Create LSTM model
                         model = LSTMModel(input_size, hidden_size,
-                                        num_layers, output_size)
+                                          num_layers, output_size)
                         model = model.to(device)
 
                         # Convert numpy arrays to PyTorch tensors
-                        if output ==1:
+                        if output == 1:
                             X_train_tensor = torch.tensor(
                                 X_train_fold, dtype=torch.float32).to(device)
                             y_train_tensor = torch.tensor(
@@ -84,14 +88,14 @@ def train_val(X, y, k=5,output=1):
                                 X_val_fold, dtype=torch.float32).to(device)
                             y_val_tensor = torch.tensor(
                                 y_val_fold, dtype=torch.long).to(device)
-                            
-                        
+
                         # Define loss function and optimizer
                         if output == 1:
-                            criterion = nn.BCELoss() 
+                            criterion = nn.BCELoss()
                         else:
                             criterion = nn.CrossEntropyLoss()
-                        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+                        optimizer = optim.Adam(
+                            model.parameters(), lr=learning_rate)
 
                         # Train the model
                         for epoch in range(epochs):
@@ -120,12 +124,13 @@ def train_val(X, y, k=5,output=1):
                         hidden_size_best = hidden_s
                         current_best_val_score = average_validation_loss
 
-                        print("current best validation score:", current_best_val_score)
+                        print("current best validation score:",
+                              current_best_val_score)
 
     return epoch_best, learning_rate_best, num_layers_best, hidden_size_best
 
 
-def train(X_train, y_train, epochs, learning_rate,n_layers,hidden_s,output):
+def train(X_train, y_train, epochs, learning_rate, n_layers, hidden_s, output, file_suffix):
     # Define model parameters
     input_size = 14  # number of features
     hidden_size = hidden_s  # number of LSTM units
@@ -136,9 +141,10 @@ def train(X_train, y_train, epochs, learning_rate,n_layers,hidden_s,output):
     model = LSTMModel(input_size, hidden_size, num_layers, output_size)
     model = model.to(device)
     # Convert numpy arrays to PyTorch tensors
-    if output ==1:
+    if output == 1:
         X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
-        y_train_tensor = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(device)
+        y_train_tensor = torch.tensor(
+            y_train, dtype=torch.float32).unsqueeze(1).to(device)
     else:
         X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
         y_train_tensor = torch.tensor(y_train, dtype=torch.long).to(device)
@@ -162,12 +168,12 @@ def train(X_train, y_train, epochs, learning_rate,n_layers,hidden_s,output):
         print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
     torch.save(model.state_dict(),
-               'ModelGeneration/lstm_model_c4hard.pth')
+               f"ModelGeneration/lstm_model_{file_suffix}.pth")
     epochs_list = list(range(1, epochs + 1))
-    make_plot(epochs_list, loss_values)
+    make_plot(epochs_list, loss_values, file_suffix)
 
 
-def make_plot(x, y):
+def make_plot(x, y, file_suffix):
     plt.plot(x, y, 'bo', label='Training loss')
     plt.title('Training loss over epochs')
     plt.xlabel('Epochs')
@@ -175,18 +181,18 @@ def make_plot(x, y):
     plt.legend()
 
     # Save the plot to an image file
-    plt.savefig('ModelGeneration/training_loss_plot.png')
+    plt.savefig(f"ModelGeneration/training_loss_{file_suffix}.png")
 
     # Close the plot to free up memory
     plt.close()
 
 
-def evaluate(X_test, y_test,hidden_s,n_layers,output):
+def evaluate(X_test, y_test, hidden_s, n_layers, output, file_suffix):
     # Load the trained model
     model = LSTMModel(input_size=14, hidden_size=hidden_s,
                       num_layers=n_layers, output_size=output)
     model.load_state_dict(torch.load(
-        'ModelGeneration/lstm_model_c4hard.pth'))
+        f"ModelGeneration/lstm_model_{file_suffix}.pth"))
     model.eval()
 
     # Convert numpy arrays to PyTorch tensors
@@ -196,7 +202,7 @@ def evaluate(X_test, y_test,hidden_s,n_layers,output):
     with torch.no_grad():
         outputs = model(X_test_tensor)
         # Convert to binary predictions
-    if output ==1:
+    if output == 1:
         predictions = (outputs.squeeze() > 0.5).cpu().numpy()
     else:
         probabilities = torch.nn.functional.softmax(outputs, dim=1)
@@ -212,29 +218,50 @@ def evaluate(X_test, y_test,hidden_s,n_layers,output):
     if output == 1:
         class_labels = ['Negative', 'Positive']
     else:
-        mapper = {0: 'hard', 1: 'plasticbottle', 2: 'soft'} # change mapper according to encoding of y
+        # change mapper according to encoding of y
+        mapper = {0: 'hard', 1: 'plasticbottle', 2: 'soft'}
         class_labels = [mapper[i] for i in range(output)]
-        
 
     print(f'Test Accuracy: {accuracy:.4f}')
     # Display confusion matrix with labels
-    disp = ConfusionMatrixDisplay(confusion_matrix=confusion_mat, display_labels=class_labels)
-    disp.plot(include_values=True, cmap='Blues', ax=None, xticks_rotation='horizontal')
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=confusion_mat, display_labels=class_labels)
+    disp.plot(include_values=True, cmap='Blues',
+              ax=None, xticks_rotation='horizontal')
     plt.show()
 
 
 if __name__ == '__main__':
+    load_dotenv(find_dotenv())
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Print the device being used
     print('Using device:', device)
 
-    #folder_path = Path('/home/mindlab/humanObjectDetectionDataset/processedData')
-    #X = np.load(str((folder_path / "x_data.npy").absolute()))
-    #y = np.load(str((folder_path / "y_data.npy").absolute()))
-    X = np.load("DataPreparation/x_data_a4_torqueposition.npy")
-    y = np.load("DataPreparation/y_data_a4_torqueposition.npy")
- 
+    # specify dataset-files (via file suffix)
+    # dataset with a single extracted time-window per contact, beginning at exact first contact time
+    #files_suffix = "single_on_contact"
+
+    # dataset with one extracted time-window per contact, beginning 100ms (= 20 robot data rows) before first contact time
+    #files_suffix = "single_left_offset"
+
+    # dataset with multiple extracted (sliding) time-windows per contact, beginning 100ms before contact time, until end of contact is reached
+    # sliding window step is 4 robot data rows = 20ms
+    files_suffix = "sliding_left_offset"
+
+    X_file, y_file = f"x_{files_suffix}.npy", f"y_{files_suffix}.npy"
+
+    processed_data_folder_path = Path(os.environ.get(
+        "DATASET_REPO_ROOT_PATH")) / "processedData"
+    X = np.load(str((processed_data_folder_path / X_file).absolute()))
+    y = np.load(str((processed_data_folder_path / y_file).absolute()))
+
+    # filter X features to fit model
+    # (as of 02.04.2024) all datasets contain the following features in that order (torque- / position- / velocity errors):
+    # ['etau_J0', 'etau_J1', 'etau_J2', 'etau_J3', 'etau_J4', 'etau_J5', 'etau_J6', 'e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'de0', 'de1', 'de2', 'de3', 'de4', 'de5', 'de6']
+    X = X[:, :, 0:14]
+
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
     X_train, X_test, y_train, y_test = train_test_split(
@@ -242,8 +269,15 @@ if __name__ == '__main__':
 
     # comment Justin: ToDo: normalize data (need to do this here instead of in data preparation,
     # because need to calculate normalization values only on training set and the apply same values to test set)
-    e, lr,num_layers,hidden_size = train_val(X_train, y_train, k=5,output=3)  # k-fold cross validation
-    print(f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
+
+    # k-fold cross validation
+    e, lr, num_layers, hidden_size = train_val(
+        X_train, y_train, k=5, output=3)
+    print(
+        f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
+
     # train the model with the whole dataset
-    train(X_train, y_train, epochs=e, learning_rate=lr,n_layers=num_layers,hidden_s=hidden_size,output=3)
-    evaluate(X_test, y_test,n_layers=num_layers,hidden_s=hidden_size,output=3)  # evaluate the trained model
+    train(X_train, y_train, epochs=e, learning_rate=lr,
+          n_layers=num_layers, hidden_s=hidden_size, output=3, file_suffix=files_suffix)
+    evaluate(X_test, y_test, n_layers=num_layers, hidden_s=hidden_size,
+             output=3, file_suffix=files_suffix)  # evaluate the trained model
