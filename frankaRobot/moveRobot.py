@@ -26,7 +26,6 @@ By Maryam Rezayati
 		source /opt/ros/noetic/setup.bash
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
-	
 		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/moveRobot.py
 
 5. run save data node

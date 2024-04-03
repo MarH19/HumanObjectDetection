@@ -11,6 +11,9 @@ from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder
 
+# ===============================================================================================================================================
+# on MindLab PC, use the humanObjDetEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
+# ===============================================================================================================================================
 
 # comment Justin: LSTM seems like a good fit, maybe GRU would be worth a try to avoid overfitting (since they're simpler)
 class LSTMModel(nn.Module):

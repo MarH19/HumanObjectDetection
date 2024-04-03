@@ -25,8 +25,7 @@ By Maryam Rezayati
 		source /opt/ros/noetic/setup.bash
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
-	
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_copy.py
+		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_human_object_detection.py
 	
 
 5. run save data node
@@ -34,7 +33,6 @@ By Maryam Rezayati
 		source /opt/ros/noetic/setup.bash
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
-	
 		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/saveDataNode.py
 
 # to chage publish rate of frankastate go to : 
@@ -70,12 +68,12 @@ num_features_lstm = 4
 #contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_06_30_2023_10_16_53.pth'
 contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_01_24_2024_11_18_01.pth'
 
-classification_path = main_path + 'ModelGeneration/lstm_model_c4hard.pth'
+classification_path = main_path + 'ModelGeneration/lstm_model_single_left_offset.pth'
 
 
 window_length = 28 # for 0.2 window frame --> 40 with 200Hz frequency
 features_num = 28 # 4 variables are and 7 joints -> 4*7 = 28
-features_num_classification = 7
+features_num_classification = 14
 dof = 7
 
 # Define paths for joint motion data
@@ -85,12 +83,13 @@ joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointDa
 # load model
 model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_path, num_features_lstm=num_features_lstm)
 
-model_classification = LSTMModel(input_size=7, hidden_size=64, num_layers=1, output_size=1)
+model_classification = LSTMModel(input_size=14, hidden_size=64, num_layers=1, output_size=3)
 model_classification.load_state_dict(torch.load(classification_path))
 model_classification.eval()
 labels_classification = {
-	0:"hard",
-	1:"soft"
+	0:	"hard",
+	1:	"soft",
+	2:	"plasticbottle"
 }
 
 # Set device for PyTorch models and select first GPU cuda:0
@@ -143,11 +142,12 @@ def contact_detection(data):
 	lstmDataWindow = np.vstack(lstmDataWindow)
 
 	# data input prep for classification 
-	etau = np.array(data.tau_J_d) - np.array(data.tau_J) # classification model trained on
-	etau = etau.reshape((1,features_num_classification))
-	window_classification = np.append(window_classification[1:,:],etau,axis=0)
+	features = np.array(data.tau_J_d) - np.array(data.tau_J) # etau
+	features = np.concatenate([features, e_q]) 
+	features = features.reshape((1,features_num_classification))
+	window_classification = np.append(window_classification[1:,:],features,axis=0)
 	
-	etau_tensor = torch.tensor(window_classification,dtype=torch.float32).unsqueeze(0).to(device) # gives (1,window_size,feature_number)
+	features_tensor = torch.tensor(window_classification,dtype=torch.float32).unsqueeze(0).to(device) # gives (1,window_size,feature_number)
 	
 	with torch.no_grad():
 		data_input = transform(lstmDataWindow).to(device).float() # mit torch.tensor(X_test, dtype=torch.float32) ausprobieren
@@ -158,23 +158,25 @@ def contact_detection(data):
 	contact = output.cpu().numpy()[0]
 	if contact == 1:
 		with torch.no_grad():
-			model_out = model_classification(etau_tensor)
-			classification = (model_out.squeeze() > 0.5).cpu().numpy()  # Convert to binary predictions
+			model_out = model_classification(features_tensor)
+			#classification = (model_out.squeeze() > 0.5).cpu().numpy()  # Convert to binary predictions
+			probabilities = torch.nn.functional.softmax(model_out, dim=1)
+			prediction = torch.argmax(probabilities, dim=1).cpu().numpy()
 			
 		detection_duration  = rospy.get_time()-start_time
-		rospy.loginfo(f'detection duration: {detection_duration}, There is a {labels_classification[int(classification)]} contact')
+		rospy.loginfo(f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(prediction)]}')
 	
 		
 
 	else:
 		detection_duration  = rospy.get_time()-start_time
-		classification = 2 # hard = 0 soft = 1
+		prediction = -1
 		#rospy.loginfo('detection duration: %f, there is no contact',detection_duration)
 		#publish_output.publish([detection_duration, contact, contact, contact])
 	start_time = np.array(start_time).tolist()
 	time_sec = int(start_time)
 	time_nsec = start_time-time_sec
-	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, classification], dtype=np.complex128), np.hstack(window))
+	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, prediction], dtype=np.complex128), np.hstack(window))
 	model_pub.publish(model_msg)
 	
 
