@@ -1,0 +1,14 @@
+model name: sliding_left_offset
+epochs: 50
+learning rate: 0.01
+number of layers: 1
+hidden size: 128
+modification_time: 2024-04-05 16:27:42
+
+model name: sliding_left_offset
+epochs: 100
+learning rate: 0.01
+number of layers: 1
+hidden size: 128
+modification_time: 2024-04-05 16:31:31
+

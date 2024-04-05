@@ -176,7 +176,7 @@ def contact_detection(data):
 	start_time = np.array(start_time).tolist()
 	time_sec = int(start_time)
 	time_nsec = start_time-time_sec
-	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, prediction], dtype=np.complex128), np.hstack(window))
+	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, prediction], dtype=np.complex128))
 	model_pub.publish(model_msg)
 	
 

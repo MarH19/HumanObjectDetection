@@ -10,12 +10,12 @@ from dotenv import find_dotenv, load_dotenv
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder
-
+import pickle
+from datetime import datetime
 # ===============================================================================================================================================
 # on MindLab PC, use the humanObjDetEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
 # ===============================================================================================================================================
 
-# comment Justin: LSTM seems like a good fit, maybe GRU would be worth a try to avoid overfitting (since they're simpler)
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
         super(LSTMModel, self).__init__()
@@ -49,8 +49,8 @@ def train_val(X, y, k=5, output=1):
     current_best_val_score = np.inf
     for epochs in range(50, 101, 50):
         for learning_rate in [0.001, 0.01, 0.1]:
-            for n_layers in [1, 2, 3, 4]:
-                for hidden_s in [32, 64, 128]:
+            for n_layers in [1, 2, 3]:
+                for hidden_s in [64, 128,256]:
                     print(
                         f"run with {epochs} epochs, {learning_rate} learning rate, {n_layers} layers, and {hidden_s} hidden units")
                     validation_losses = []
@@ -61,11 +61,10 @@ def train_val(X, y, k=5, output=1):
                         y_val_fold = y[val_indices]
 
                         # Define model parameters
-                        # comment Justin: would it be worth a try to also tune the hidden_size and num_layers via k-fold val.?
                         input_size = 14  # number of features
                         hidden_size = hidden_s  # number of LSTM units
                         num_layers = n_layers  # number of LSTM layers
-                        output_size = output  # binary classification
+                        output_size = output  
 
                         # Create LSTM model
                         model = LSTMModel(input_size, hidden_size,
@@ -127,7 +126,7 @@ def train_val(X, y, k=5, output=1):
                         hidden_size_best = hidden_s
                         current_best_val_score = average_validation_loss
 
-                        print("current best validation score:",
+                        print("current best validation loss:",
                               current_best_val_score)
 
     return epoch_best, learning_rate_best, num_layers_best, hidden_size_best
@@ -138,12 +137,12 @@ def train(X_train, y_train, epochs, learning_rate, n_layers, hidden_s, output, f
     input_size = 14  # number of features
     hidden_size = hidden_s  # number of LSTM units
     num_layers = n_layers  # number of LSTM layers
-    output_size = output  # binary classification
+    output_size = output  
 
     # Create LSTM model
     model = LSTMModel(input_size, hidden_size, num_layers, output_size)
     model = model.to(device)
-    # Convert numpy arrays to PyTorch tensors
+    
     if output == 1:
         X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
         y_train_tensor = torch.tensor(
@@ -170,21 +169,20 @@ def train(X_train, y_train, epochs, learning_rate, n_layers, hidden_s, output, f
 
         print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
-    torch.save(model.state_dict(),
-               f"ModelGeneration/lstm_model_{file_suffix}.pth")
+    torch.save(model.state_dict(),f"humanObjectDetection/ModelGeneration/lstm_model_{file_suffix}.pth")
     epochs_list = list(range(1, epochs + 1))
     make_plot(epochs_list, loss_values, file_suffix)
 
 
 def make_plot(x, y, file_suffix):
     plt.plot(x, y, 'bo', label='Training loss')
-    plt.title('Training loss over epochs')
+    plt.title(f'Training loss over epochs for {file_suffix}')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
 
     # Save the plot to an image file
-    plt.savefig(f"ModelGeneration/training_loss_{file_suffix}.png")
+    plt.savefig(f"humanObjectDetection/ModelGeneration/training_loss_{file_suffix}.png")
 
     # Close the plot to free up memory
     plt.close()
@@ -195,7 +193,7 @@ def evaluate(X_test, y_test, hidden_s, n_layers, output, file_suffix):
     model = LSTMModel(input_size=14, hidden_size=hidden_s,
                       num_layers=n_layers, output_size=output)
     model.load_state_dict(torch.load(
-        f"ModelGeneration/lstm_model_{file_suffix}.pth"))
+        f"humanObjectDetection/ModelGeneration/lstm_model_{file_suffix}.pth"))
     model.eval()
 
     # Convert numpy arrays to PyTorch tensors
@@ -204,7 +202,7 @@ def evaluate(X_test, y_test, hidden_s, n_layers, output, file_suffix):
     # Perform inference
     with torch.no_grad():
         outputs = model(X_test_tensor)
-        # Convert to binary predictions
+    
     if output == 1:
         predictions = (outputs.squeeze() > 0.5).cpu().numpy()
     else:
@@ -233,6 +231,23 @@ def evaluate(X_test, y_test, hidden_s, n_layers, output, file_suffix):
               ax=None, xticks_rotation='horizontal')
     plt.show()
 
+def save_params(model_name,epochs,learning_rate,num_layers,hidden_size):
+    best_params = {
+        "model name":model_name,
+        "epochs":epochs,
+        "learning rate": learning_rate,
+        "number of layers":num_layers,
+        "hidden size": hidden_size,
+        'modification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    file_path = "humanObjectDetection/ModelGeneration/parameter_file.txt"
+    
+    mode = 'a' if os.path.exists(file_path) else 'w'
+    
+    with open(file_path, mode) as f:
+        for key, value in best_params.items():
+            f.write(f"{key}: {value}\n")
+        f.write("\n")
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
@@ -268,19 +283,17 @@ if __name__ == '__main__':
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y_encoded, test_size=0.2)
+        X, y_encoded, test_size=0.1)
 
     # comment Justin: ToDo: normalize data (need to do this here instead of in data preparation,
     # because need to calculate normalization values only on training set and the apply same values to test set)
 
     # k-fold cross validation
-    e, lr, num_layers, hidden_size = train_val(
-        X_train, y_train, k=5, output=3)
-    print(
-        f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
+    e, lr, num_layers, hidden_size = train_val(X_train, y_train, k=5, output=3)
+    print(f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
+    save_params(files_suffix,e,lr,num_layers,hidden_size)
 
-    # train the model with the whole dataset
-    train(X_train, y_train, epochs=e, learning_rate=lr,
-          n_layers=num_layers, hidden_s=hidden_size, output=3, file_suffix=files_suffix)
-    evaluate(X_test, y_test, n_layers=num_layers, hidden_s=hidden_size,
-             output=3, file_suffix=files_suffix)  # evaluate the trained model
+    # train the model 
+    train(X_train, y_train, epochs=e, learning_rate=lr,n_layers=num_layers, hidden_s=hidden_size, output=3, file_suffix=files_suffix)
+    # evaluate the trained model
+    evaluate(X_test, y_test, n_layers=num_layers, hidden_s=hidden_size,output=3, file_suffix=files_suffix)  
