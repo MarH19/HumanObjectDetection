@@ -12,3 +12,31 @@ number of layers: 1
 hidden size: 128
 modification_time: 2024-04-05 16:31:31
 
+model name: single_left_offset
+epochs: 100
+learning rate: 0.001
+number of layers: 1
+hidden size: 256
+modification_time: 2024-04-10 10:10:41
+
+model name: single_left_offset
+epochs: 100
+learning rate: 0.01
+number of layers: 1
+hidden size: 64
+modification_time: 2024-04-10 10:14:36
+
+model name: single_left_offset
+epochs: 100
+learning rate: 0.01
+number of layers: 1
+hidden size: 128
+modification_time: 2024-04-10 10:19:17
+
+model name: single_on_contact
+epochs: 100
+learning rate: 0.001
+number of layers: 1
+hidden size: 256
+modification_time: 2024-04-10 10:22:33
+

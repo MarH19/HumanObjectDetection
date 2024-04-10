@@ -169,7 +169,7 @@ def train(X_train, y_train, epochs, learning_rate, n_layers, hidden_s, output, f
 
         print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
-    torch.save(model.state_dict(),f"humanObjectDetection/ModelGeneration/lstm_model_{file_suffix}.pth")
+    torch.save(model.state_dict(),f"ModelGeneration/lstm_model_{file_suffix}.pth")
     epochs_list = list(range(1, epochs + 1))
     make_plot(epochs_list, loss_values, file_suffix)
 
@@ -182,7 +182,7 @@ def make_plot(x, y, file_suffix):
     plt.legend()
 
     # Save the plot to an image file
-    plt.savefig(f"humanObjectDetection/ModelGeneration/training_loss_{file_suffix}.png")
+    plt.savefig(f"ModelGeneration/training_loss_{file_suffix}.png")
 
     # Close the plot to free up memory
     plt.close()
@@ -193,7 +193,7 @@ def evaluate(X_test, y_test, hidden_s, n_layers, output, file_suffix):
     model = LSTMModel(input_size=14, hidden_size=hidden_s,
                       num_layers=n_layers, output_size=output)
     model.load_state_dict(torch.load(
-        f"humanObjectDetection/ModelGeneration/lstm_model_{file_suffix}.pth"))
+        f"ModelGeneration/lstm_model_{file_suffix}.pth"))
     model.eval()
 
     # Convert numpy arrays to PyTorch tensors
@@ -240,8 +240,8 @@ def save_params(model_name,epochs,learning_rate,num_layers,hidden_size):
         "hidden size": hidden_size,
         'modification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
-    file_path = "humanObjectDetection/ModelGeneration/parameter_file.txt"
-    
+    file_path = "ModelGeneration\parameter_file.txt"
+   
     mode = 'a' if os.path.exists(file_path) else 'w'
     
     with open(file_path, mode) as f:
@@ -259,14 +259,14 @@ if __name__ == '__main__':
 
     # specify dataset-files (via file suffix)
     # dataset with a single extracted time-window per contact, beginning at exact first contact time
-    #files_suffix = "single_on_contact"
+    files_suffix = "single_on_contact"
 
     # dataset with one extracted time-window per contact, beginning 100ms (= 20 robot data rows) before first contact time
     #files_suffix = "single_left_offset"
 
     # dataset with multiple extracted (sliding) time-windows per contact, beginning 100ms before contact time, until end of contact is reached
     # sliding window step is 4 robot data rows = 20ms
-    files_suffix = "sliding_left_offset"
+    #files_suffix = "sliding_left_offset"
 
     X_file, y_file = f"x_{files_suffix}.npy", f"y_{files_suffix}.npy"
 
