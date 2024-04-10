@@ -47,9 +47,9 @@ def train_val(X, y, k=5, output=1):
     num_layers_best = 0
     hidden_size_best = 0
     current_best_val_score = np.inf
-    for epochs in range(50, 101, 50):
+    for epochs in range(100, 101, 50):
         for learning_rate in [0.001, 0.01, 0.1]:
-            for n_layers in [1, 2, 3]:
+            for n_layers in [1, 2]:
                 for hidden_s in [64, 128,256]:
                     print(
                         f"run with {epochs} epochs, {learning_rate} learning rate, {n_layers} layers, and {hidden_s} hidden units")
@@ -259,10 +259,10 @@ if __name__ == '__main__':
 
     # specify dataset-files (via file suffix)
     # dataset with a single extracted time-window per contact, beginning at exact first contact time
-    files_suffix = "single_on_contact"
+    #files_suffix = "single_on_contact"
 
     # dataset with one extracted time-window per contact, beginning 100ms (= 20 robot data rows) before first contact time
-    #files_suffix = "single_left_offset"
+    files_suffix = "single_left_offset20240410"
 
     # dataset with multiple extracted (sliding) time-windows per contact, beginning 100ms before contact time, until end of contact is reached
     # sliding window step is 4 robot data rows = 20ms
@@ -289,10 +289,14 @@ if __name__ == '__main__':
     # because need to calculate normalization values only on training set and the apply same values to test set)
 
     # k-fold cross validation
-    e, lr, num_layers, hidden_size = train_val(X_train, y_train, k=5, output=3)
+    #e, lr, num_layers, hidden_size = train_val(X_train, y_train, k=5, output=3)
+    e=100
+    lr=0.001
+    num_layers=1
+    hidden_size=256
     print(f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
     save_params(files_suffix,e,lr,num_layers,hidden_size)
-
+    
     # train the model 
     train(X_train, y_train, epochs=e, learning_rate=lr,n_layers=num_layers, hidden_s=hidden_size, output=3, file_suffix=files_suffix)
     # evaluate the trained model

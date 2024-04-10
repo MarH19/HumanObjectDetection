@@ -85,7 +85,7 @@ class LogData:
 
         self.model_results_file = csv.writer(open(model_results_path, 'w'))
         self.model_results_file.writerow(
-            ('Time_sec', 'Time_nsec', 'prediction_duration', 'contact', 'prediction'))
+            ('Time_sec', 'Time_nsec', 'prediction_duration', 'contact', 'contact_class_prediction'))
 
         meta_data = {
             "date": datetime.now().strftime('%Y-%m-%d'),

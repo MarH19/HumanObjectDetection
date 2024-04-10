@@ -29,6 +29,10 @@ class MakeFolderDataset:
         self.de = ['de0', 'de1', 'de2', 'de3', 'de4', 'de5', 'de6']
         self.etau = ['etau_J0', 'etau_J1', 'etau_J2',
                      'etau_J3', 'etau_J4', 'etau_J5', 'etau_J6']
+        
+        self.init_time = 0
+        self.name = folder_path.name
+        self.model_results = pd.DataFrame()
 
         with open(str((self.path / 'meta.json').absolute())) as meta_json:
             meta_data = json.load(meta_json)
@@ -93,6 +97,10 @@ class MakeFolderDataset:
     def get_labels_all(self):
         true_label_path_str = str((self.path / 'true_label.csv').absolute())
         self.true_label = pd.read_csv(true_label_path_str)
+        
+        # ToDo @JHE: refactor this
+        self.init_time = self.df['time'][0]
+
         self.true_label['time'] = self.true_label['time_sec'] + \
             self.true_label['time_nsec']-self.df['time'][0]
         self.df['time'] = self.df['time'] - self.df['time'][0]

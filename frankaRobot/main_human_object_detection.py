@@ -62,16 +62,22 @@ from ModelGeneration.model_generation import LSTMModel
 # Set the main path
 main_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 
+# Set device for PyTorch models and select first GPU cuda:0
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+if device.type == "cuda":
+	torch.cuda.get_device_name()
+
 # Define parameters for the LSTM models
 num_features_lstm = 4
 
 #contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_06_30_2023_10_16_53.pth'
 contact_detection_path= main_path +'AIModels/trainedModels/contactDetection/trainedModel_01_24_2024_11_18_01.pth'
 
-classification_path = main_path + 'ModelGeneration/lstm_model_single_left_offset.pth'
+classification_path = main_path + 'ModelGeneration/lstm_model_single_left_offset20240410.pth'
 
 
 window_length = 28 # for 0.2 window frame --> 40 with 200Hz frequency
+window_classification_length = 40
 features_num = 28 # 4 variables are and 7 joints -> 4*7 = 28
 features_num_classification = 14
 dof = 7
@@ -83,8 +89,8 @@ joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointDa
 # load model
 model_contact, labels_map_contact = import_lstm_models(PATH=contact_detection_path, num_features_lstm=num_features_lstm)
 
-model_classification = LSTMModel(input_size=14, hidden_size=64, num_layers=1, output_size=3)
-model_classification.load_state_dict(torch.load(classification_path))
+model_classification = LSTMModel(input_size=14, hidden_size=256, num_layers=1, output_size=3)
+model_classification.load_state_dict(torch.load(classification_path, map_location='cpu'))
 model_classification.eval()
 labels_classification = {
 	0:	"hard",
@@ -92,10 +98,6 @@ labels_classification = {
 	2:	"plasticbottle"
 }
 
-# Set device for PyTorch models and select first GPU cuda:0
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device.type == "cuda":
-	torch.cuda.get_device_name()
 
 # Move PyTorch models to the selected device
 model_contact = model_contact.to(device)
@@ -104,7 +106,7 @@ model_classification = model_classification.to(device)
 # Define transformation for input data
 transform = transforms.Compose([transforms.ToTensor()])
 window = np.zeros([window_length, features_num])
-window_classification = np.zeros([window_length,features_num_classification])
+window_classification = np.zeros([window_classification_length,features_num_classification])
 # Create message for publishing model output (will be used in saceDataNode.py)
 model_msg = Floats()
 
@@ -176,7 +178,7 @@ def contact_detection(data):
 	start_time = np.array(start_time).tolist()
 	time_sec = int(start_time)
 	time_nsec = start_time-time_sec
-	model_msg.data = np.append(np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, prediction], dtype=np.complex128))
+	model_msg.data = np.array([time_sec-big_time_digits, time_nsec, detection_duration, contact, prediction], dtype=np.complex128)
 	model_pub.publish(model_msg)
 	
 
