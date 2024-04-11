@@ -12,6 +12,7 @@ from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder
 import pickle
 from datetime import datetime
+from sklearn.preprocessing import MinMaxScaler
 # ===============================================================================================================================================
 # on MindLab PC, use the humanObjDetEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
 # ===============================================================================================================================================
@@ -47,13 +48,14 @@ def train_val(X, y, k=5, output=1):
     num_layers_best = 0
     hidden_size_best = 0
     current_best_val_score = np.inf
-    for epochs in range(50, 101, 50):
-        for learning_rate in [0.001, 0.01, 0.1]:
-            for n_layers in [1, 2]:
-                for hidden_s in [64, 128,256,512]:
+    for epochs in range(100, 101, 50):
+        for learning_rate in [0.001]:
+            for n_layers in [2,3,4,5,6]:
+                for hidden_s in [128,256]:
                     print(
                         f"run with {epochs} epochs, {learning_rate} learning rate, {n_layers} layers, and {hidden_s} hidden units")
                     validation_losses = []
+                    accuracies = []
                     for fold, (train_indices, val_indices) in enumerate(kf.split(X)):
                         X_train_fold = X[train_indices]
                         y_train_fold = y[train_indices]
@@ -113,12 +115,22 @@ def train_val(X, y, k=5, output=1):
                         with torch.no_grad():
                             val_outputs = model(X_val_tensor)
                             val_loss = criterion(val_outputs, y_val_tensor)
+                            if output == 1:
+                                predictions = (val_outputs.squeeze() > 0.5).cpu().numpy()
+                            else:
+                                probabilities = torch.nn.functional.softmax(val_outputs, dim=1)
+                                predictions = torch.argmax(probabilities, dim=1).cpu().numpy()
+
+                            # Calculate accuracy
+                            accuracies.append(np.mean(predictions == y_val_fold))
                             # print(f'Fold [{fold+1}/{k}], Validation Loss: {val_loss.item():.4f}')
                             validation_losses.append(val_loss.item())
 
                     average_validation_loss = sum(
                         validation_losses) / len(validation_losses)
-                    # print(f'Average validation loss: {average_validation_loss}')
+                    average_accuracy = sum(
+                        accuracies) / len(accuracies)
+                    print(f'Average validation loss: {average_validation_loss},average accuracy:{average_accuracy}')
                     if average_validation_loss < current_best_val_score:
                         epoch_best = epochs
                         learning_rate_best = learning_rate
@@ -240,7 +252,7 @@ def save_params(model_name,epochs,learning_rate,num_layers,hidden_size):
         "hidden size": hidden_size,
         'modification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
-    file_path = "ModelGeneration\parameter_file.txt"
+    file_path = f"ModelGeneration/parameter_file.txt"
    
     mode = 'a' if os.path.exists(file_path) else 'w'
     
@@ -285,12 +297,19 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(
         X, y_encoded, test_size=0.1)
 
-    # comment Justin: ToDo: normalize data (need to do this here instead of in data preparation,
-    # because need to calculate normalization values only on training set and the apply same values to test set)
-
+    
+    
+    #X_train_normalized = (X_train - X_train.mean(axis=2, keepdims=True)) / X_train.std(axis=2,keepdims=True)
+    #X_test_normalized = (X_test- X_test.mean(axis=2, keepdims=True)) / X_test.std(axis=2,keepdims=True)
+    X_train_normalized = (X_train - X_train.min(axis=2, keepdims=True)) / (X_train.max(axis=2,keepdims=True)-X_train.min(axis=2, keepdims=True))
+    X_test_normalized = (X_test - X_test.min(axis=2, keepdims=True)) / (X_test.max(axis=2,keepdims=True)-X_test.min(axis=2, keepdims=True))
+    X_train = X_train_normalized
+    X_test = X_test_normalized
+    
     # k-fold cross validation
     e, lr, num_layers, hidden_size = train_val(X_train, y_train, k=5, output=3)
     print(f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
+    files_suffix = "sliding_left_offset20240410_c4_norm"
     save_params(files_suffix,e,lr,num_layers,hidden_size)
     
     # train the model 
