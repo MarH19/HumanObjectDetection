@@ -10,11 +10,10 @@ from dotenv import find_dotenv, load_dotenv
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder
-import pickle
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 # ===============================================================================================================================================
-# on MindLab PC, use the humanObjDetEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
+# on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
 # ===============================================================================================================================================
 
 class LSTMModel(nn.Module):
@@ -48,10 +47,10 @@ def train_val(X, y, k=5, output=1):
     num_layers_best = 0
     hidden_size_best = 0
     current_best_val_score = np.inf
-    for epochs in range(100, 101, 50):
-        for learning_rate in [0.001]:
-            for n_layers in [2,3,4,5,6]:
-                for hidden_s in [128,256]:
+    for epochs in range(100, 251, 50):
+        for learning_rate in [0.0001,0.001,0.01]:
+            for n_layers in [1,2,3,4,5,6]:
+                for hidden_s in [32,64,128,256,512]:
                     print(
                         f"run with {epochs} epochs, {learning_rate} learning rate, {n_layers} layers, and {hidden_s} hidden units")
                     validation_losses = []
@@ -274,11 +273,12 @@ if __name__ == '__main__':
     #files_suffix = "single_on_contact"
 
     # dataset with one extracted time-window per contact, beginning 100ms (= 20 robot data rows) before first contact time
-    files_suffix = "sliding_left_offset20240410_c4"
+    #files_suffix = "single_left_offset20240410_c4"
 
     # dataset with multiple extracted (sliding) time-windows per contact, beginning 100ms before contact time, until end of contact is reached
     # sliding window step is 4 robot data rows = 20ms
     #files_suffix = "sliding_left_offset"
+    files_suffix = "sliding_left_offset20240410_c4"
 
     X_file, y_file = f"x_{files_suffix}.npy", f"y_{files_suffix}.npy"
 
@@ -301,15 +301,16 @@ if __name__ == '__main__':
     
     #X_train_normalized = (X_train - X_train.mean(axis=2, keepdims=True)) / X_train.std(axis=2,keepdims=True)
     #X_test_normalized = (X_test- X_test.mean(axis=2, keepdims=True)) / X_test.std(axis=2,keepdims=True)
-    X_train_normalized = (X_train - X_train.min(axis=2, keepdims=True)) / (X_train.max(axis=2,keepdims=True)-X_train.min(axis=2, keepdims=True))
-    X_test_normalized = (X_test - X_test.min(axis=2, keepdims=True)) / (X_test.max(axis=2,keepdims=True)-X_test.min(axis=2, keepdims=True))
-    X_train = X_train_normalized
-    X_test = X_test_normalized
+    normalize = True
+    if normalize:
+        X_train = (X_train - X_train.min(axis=2, keepdims=True)) / (X_train.max(axis=2,keepdims=True)-X_train.min(axis=2, keepdims=True))
+        X_test = (X_test - X_test.min(axis=2, keepdims=True)) / (X_test.max(axis=2,keepdims=True)-X_test.min(axis=2, keepdims=True))
+        files_suffix += "_norm"
     
     # k-fold cross validation
     e, lr, num_layers, hidden_size = train_val(X_train, y_train, k=5, output=3)
     print(f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
-    files_suffix = "sliding_left_offset20240410_c4_norm"
+    
     save_params(files_suffix,e,lr,num_layers,hidden_size)
     
     # train the model 
