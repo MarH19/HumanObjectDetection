@@ -16,6 +16,7 @@ from sklearn.preprocessing import MinMaxScaler
 # on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
 # ===============================================================================================================================================
 
+
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
         super(LSTMModel, self).__init__()
@@ -39,6 +40,15 @@ class LSTMModel(nn.Module):
         return out
 
 
+def get_trained_models_path():
+    return Path(__file__).parent.absolute() / "TrainedModels"
+
+
+def get_model_params_path(model_prefix, file_suffix):
+    trained_models_path = get_trained_models_path()
+    return str((trained_models_path / f"{model_prefix}_model_{file_suffix}.pth").absolute())
+
+
 def train_val(X, y, k=5, output=1):
     kf = KFold(n_splits=k, shuffle=True)
 
@@ -48,9 +58,9 @@ def train_val(X, y, k=5, output=1):
     hidden_size_best = 0
     current_best_val_score = np.inf
     for epochs in range(100, 251, 50):
-        for learning_rate in [0.0001,0.001,0.01]:
-            for n_layers in [1,2,3,4,5,6]:
-                for hidden_s in [32,64,128,256,512]:
+        for learning_rate in [0.0001, 0.001, 0.01]:
+            for n_layers in [1, 2, 3, 4, 5, 6]:
+                for hidden_s in [32, 64, 128, 256, 512]:
                     print(
                         f"run with {epochs} epochs, {learning_rate} learning rate, {n_layers} layers, and {hidden_s} hidden units")
                     validation_losses = []
@@ -65,7 +75,7 @@ def train_val(X, y, k=5, output=1):
                         input_size = 14  # number of features
                         hidden_size = hidden_s  # number of LSTM units
                         num_layers = n_layers  # number of LSTM layers
-                        output_size = output  
+                        output_size = output
 
                         # Create LSTM model
                         model = LSTMModel(input_size, hidden_size,
@@ -115,13 +125,17 @@ def train_val(X, y, k=5, output=1):
                             val_outputs = model(X_val_tensor)
                             val_loss = criterion(val_outputs, y_val_tensor)
                             if output == 1:
-                                predictions = (val_outputs.squeeze() > 0.5).cpu().numpy()
+                                predictions = (
+                                    val_outputs.squeeze() > 0.5).cpu().numpy()
                             else:
-                                probabilities = torch.nn.functional.softmax(val_outputs, dim=1)
-                                predictions = torch.argmax(probabilities, dim=1).cpu().numpy()
+                                probabilities = torch.nn.functional.softmax(
+                                    val_outputs, dim=1)
+                                predictions = torch.argmax(
+                                    probabilities, dim=1).cpu().numpy()
 
                             # Calculate accuracy
-                            accuracies.append(np.mean(predictions == y_val_fold))
+                            accuracies.append(
+                                np.mean(predictions == y_val_fold))
                             # print(f'Fold [{fold+1}/{k}], Validation Loss: {val_loss.item():.4f}')
                             validation_losses.append(val_loss.item())
 
@@ -129,7 +143,8 @@ def train_val(X, y, k=5, output=1):
                         validation_losses) / len(validation_losses)
                     average_accuracy = sum(
                         accuracies) / len(accuracies)
-                    print(f'Average validation loss: {average_validation_loss},average accuracy:{average_accuracy}')
+                    print(
+                        f'Average validation loss: {average_validation_loss},average accuracy:{average_accuracy}')
                     if average_validation_loss < current_best_val_score:
                         epoch_best = epochs
                         learning_rate_best = learning_rate
@@ -148,12 +163,12 @@ def train(X_train, y_train, epochs, learning_rate, n_layers, hidden_s, output, f
     input_size = 14  # number of features
     hidden_size = hidden_s  # number of LSTM units
     num_layers = n_layers  # number of LSTM layers
-    output_size = output  
+    output_size = output
 
     # Create LSTM model
     model = LSTMModel(input_size, hidden_size, num_layers, output_size)
     model = model.to(device)
-    
+
     if output == 1:
         X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
         y_train_tensor = torch.tensor(
@@ -180,20 +195,22 @@ def train(X_train, y_train, epochs, learning_rate, n_layers, hidden_s, output, f
 
         print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
-    torch.save(model.state_dict(),f"ModelGeneration/lstm_model_{file_suffix}.pth")
-    epochs_list = list(range(1, epochs + 1))
-    make_plot(epochs_list, loss_values, file_suffix)
+    torch.save(model.state_dict(), get_model_params_path(
+        model_prefix="lstm", file_suffix=file_suffix))
+    plot_model_training_loss(epochs, loss_values, file_suffix)
 
 
-def make_plot(x, y, file_suffix):
-    plt.plot(x, y, 'bo', label='Training loss')
+def plot_model_training_loss(epochs, loss_values, file_suffix):
+    plt.plot(list(range(1, epochs + 1)), loss_values, label='Training loss')
     plt.title(f'Training loss over epochs for {file_suffix}')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
 
     # Save the plot to an image file
-    plt.savefig(f"ModelGeneration/training_loss_{file_suffix}.png")
+    trained_model_results_path = get_trained_models_path() / "Results"
+    plt.savefig(str((trained_model_results_path /
+                f"training_loss_{file_suffix}.png").absolute()))
 
     # Close the plot to free up memory
     plt.close()
@@ -203,8 +220,8 @@ def evaluate(X_test, y_test, hidden_s, n_layers, output, file_suffix):
     # Load the trained model
     model = LSTMModel(input_size=14, hidden_size=hidden_s,
                       num_layers=n_layers, output_size=output)
-    model.load_state_dict(torch.load(
-        f"ModelGeneration/lstm_model_{file_suffix}.pth"))
+    model.load_state_dict(torch.load(get_model_params_path(
+        model_prefix="lstm", file_suffix=file_suffix)))
     model.eval()
 
     # Convert numpy arrays to PyTorch tensors
@@ -213,7 +230,7 @@ def evaluate(X_test, y_test, hidden_s, n_layers, output, file_suffix):
     # Perform inference
     with torch.no_grad():
         outputs = model(X_test_tensor)
-    
+
     if output == 1:
         predictions = (outputs.squeeze() > 0.5).cpu().numpy()
     else:
@@ -235,30 +252,42 @@ def evaluate(X_test, y_test, hidden_s, n_layers, output, file_suffix):
         class_labels = [mapper[i] for i in range(output)]
 
     print(f'Test Accuracy: {accuracy:.4f}')
-    # Display confusion matrix with labels
-    disp = ConfusionMatrixDisplay(
-        confusion_matrix=confusion_mat, display_labels=class_labels)
-    disp.plot(include_values=True, cmap='Blues',
-              ax=None, xticks_rotation='horizontal')
-    plt.show()
 
-def save_params(model_name,epochs,learning_rate,num_layers,hidden_size):
+    # Display confusion matrix with labels
+    try:
+        disp = ConfusionMatrixDisplay(
+            confusion_matrix=confusion_mat, display_labels=class_labels)
+        disp.plot(include_values=True, cmap='Blues',
+                  ax=None, xticks_rotation='horizontal')
+
+        # save confusion matrix plot
+        trained_model_results_path = get_trained_models_path() / "Results"
+        disp.figure_.savefig(str(
+            (trained_model_results_path / f"confusion_matrix_{file_suffix}.png").absolute()))
+
+        plt.show()
+    except:
+        print("unable to create confusion matrix due to test set expected labels not matching expected label count")
+
+
+def save_params(model_name, epochs, learning_rate, num_layers, hidden_size):
     best_params = {
-        "model name":model_name,
-        "epochs":epochs,
+        "model name": model_name,
+        "epochs": epochs,
         "learning rate": learning_rate,
-        "number of layers":num_layers,
+        "number of layers": num_layers,
         "hidden size": hidden_size,
         'modification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     file_path = f"ModelGeneration/parameter_file.txt"
-   
+
     mode = 'a' if os.path.exists(file_path) else 'w'
-    
+
     with open(file_path, mode) as f:
         for key, value in best_params.items():
             f.write(f"{key}: {value}\n")
         f.write("\n")
+
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
@@ -270,15 +299,15 @@ if __name__ == '__main__':
 
     # specify dataset-files (via file suffix)
     # dataset with a single extracted time-window per contact, beginning at exact first contact time
-    #files_suffix = "single_on_contact"
+    # files_suffix = "single_on_contact"
 
     # dataset with one extracted time-window per contact, beginning 100ms (= 20 robot data rows) before first contact time
-    #files_suffix = "single_left_offset20240410_c4"
+    files_suffix = "single_left_offset20240410_c4"
 
     # dataset with multiple extracted (sliding) time-windows per contact, beginning 100ms before contact time, until end of contact is reached
     # sliding window step is 4 robot data rows = 20ms
-    #files_suffix = "sliding_left_offset"
-    files_suffix = "sliding_left_offset20240410_c4"
+    # files_suffix = "sliding_left_offset"
+    # files_suffix = "sliding_left_offset20240410_c4"
 
     X_file, y_file = f"x_{files_suffix}.npy", f"y_{files_suffix}.npy"
 
@@ -297,23 +326,26 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(
         X, y_encoded, test_size=0.1)
 
-    
-    
-    #X_train_normalized = (X_train - X_train.mean(axis=2, keepdims=True)) / X_train.std(axis=2,keepdims=True)
-    #X_test_normalized = (X_test- X_test.mean(axis=2, keepdims=True)) / X_test.std(axis=2,keepdims=True)
-    normalize = True
+    # X_train_normalized = (X_train - X_train.mean(axis=2, keepdims=True)) / X_train.std(axis=2,keepdims=True)
+    # X_test_normalized = (X_test- X_test.mean(axis=2, keepdims=True)) / X_test.std(axis=2,keepdims=True)
+    normalize = False
     if normalize:
-        X_train = (X_train - X_train.min(axis=2, keepdims=True)) / (X_train.max(axis=2,keepdims=True)-X_train.min(axis=2, keepdims=True))
-        X_test = (X_test - X_test.min(axis=2, keepdims=True)) / (X_test.max(axis=2,keepdims=True)-X_test.min(axis=2, keepdims=True))
+        X_train = (X_train - X_train.min(axis=2, keepdims=True)) / \
+            (X_train.max(axis=2, keepdims=True)-X_train.min(axis=2, keepdims=True))
+        X_test = (X_test - X_test.min(axis=2, keepdims=True)) / \
+            (X_test.max(axis=2, keepdims=True)-X_test.min(axis=2, keepdims=True))
         files_suffix += "_norm"
-    
+
     # k-fold cross validation
     e, lr, num_layers, hidden_size = train_val(X_train, y_train, k=5, output=3)
-    print(f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
-    
-    save_params(files_suffix,e,lr,num_layers,hidden_size)
-    
-    # train the model 
-    train(X_train, y_train, epochs=e, learning_rate=lr,n_layers=num_layers, hidden_s=hidden_size, output=3, file_suffix=files_suffix)
+    print(
+        f"Best score result is a combination of {e} epochs, learning rate of {lr}, {num_layers} number of layers and a hidden size of {hidden_size}.")
+
+    save_params(files_suffix, e, lr, num_layers, hidden_size)
+
+    # train the model
+    train(X_train, y_train, epochs=e, learning_rate=lr, n_layers=num_layers,
+          hidden_s=hidden_size, output=3, file_suffix=files_suffix)
     # evaluate the trained model
-    evaluate(X_test, y_test, n_layers=num_layers, hidden_s=hidden_size,output=3, file_suffix=files_suffix)  
+    evaluate(X_test, y_test, n_layers=num_layers,
+             hidden_s=hidden_size, output=3, file_suffix=files_suffix)
