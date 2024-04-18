@@ -15,9 +15,9 @@ import torch.optim as optim
 from dotenv import find_dotenv, load_dotenv
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
-from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel,
+from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, GRUModelWithLayerNorm,
                                         RNNModelHyperParameters,
                                         RNNModelHyperParameterSet)
 
@@ -25,7 +25,7 @@ from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel,
 # on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjectDetectionEnv)
 # ===========================================================================================================================================================
 
-model_classes: list[Type[RNNModel]] = [LSTMModel, GRUModel]
+model_classes: list[Type[RNNModel]] = [LSTMModel, GRUModel, GRUModelWithLayerNorm]
 
 hidden_sizes = [32, 64, 128, 256]
 num_layers = [1, 2, 3, 4]
@@ -314,11 +314,10 @@ if __name__ == '__main__':
 
     files_suffix = X_file.name.replace("x_", "").replace(".npy", "")
     if normalize:
-        X_train = (X_train - X_train.min(axis=2, keepdims=True)) / \
-            (X_train.max(axis=2, keepdims=True) -
-             X_train.min(axis=2, keepdims=True))
-        X_test = (X_test - X_test.min(axis=2, keepdims=True)) / \
-            (X_test.max(axis=2, keepdims=True) - X_test.min(axis=2, keepdims=True))
+        for i in range(X_train.shape[2]):
+            scaler = StandardScaler()
+            X_train[:, :, i] = scaler.fit_transform(X_train[:, :, i]) 
+            X_test[:, :, i] = scaler.transform(X_test[:, :, i]) 
         files_suffix += "_norm"
 
     rnn_model_trainer = RNNModelTrainer(

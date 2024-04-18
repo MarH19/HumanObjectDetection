@@ -82,3 +82,17 @@ class GRUModel(RNNModel):
             0), self.hidden_size).to(x.device)
         gru_out, _ = self.rnn_model(x, h0)
         return self.fc(gru_out[:, -1, :])
+    
+    
+class GRUModelWithLayerNorm(GRUModel):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(GRUModelWithLayerNorm, self).__init__(input_size=input_size,
+                                                    hidden_size=hidden_size, num_layers=num_layers, output_size=output_size)
+        self.layer_norm = nn.LayerNorm(hidden_size)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(
+            0), self.hidden_size).to(x.device)
+        out, _ = self.rnn_model(x, h0)
+        out = self.layer_norm(out)
+        return self.fc(out[:, -1, :])
