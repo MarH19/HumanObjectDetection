@@ -100,40 +100,43 @@ def choose_robot_motion():
 
 
 # choose model type and trained model parameters
-model_class = choose_model_class()
-model_params = choose_trained_model(model_class)
+classification_model_class = choose_model_class()
+classification_model_params = choose_trained_model(classification_model_class)
 robot_motion_path = choose_robot_motion()
 print()
 
-# Define parameters for the RNN models
+# Define parameters for the contact detection / localization models
 num_features_lstm = 4
+window_length = 28
+features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
+dof = 7
+
+# Define parameters for the classification (human object detection) model
 labels_classification = {0: "hard", 1: "soft", 2: "plasticbottle"}
+window_classification_length = 40
+classification_model_input_size = 14
 
 # Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device.type == "cuda":
     torch.cuda.get_device_name()
 
+# load models
 contact_detection_path = repo_root_path / \
     'AIModels' / 'trainedModels' / 'contactDetection' / \
     'trainedModel_01_24_2024_11_18_01.pth'
 
-model_name = model_params["model_name"]
+model_name = classification_model_params["model_name"]
 classification_path = repo_root_path / "ModelGeneration" / \
     "TrainedModels" / f"{model_name}.pth"
 
-window_length = 28  # for 0.2 window frame --> 40 with 200Hz frequency
-window_classification_length = 40
-features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
-features_num_classification = 14
-dof = 7
-
-# load models
 model_contact, labels_map_contact = import_lstm_models(
     PATH=str(contact_detection_path.absolute()), num_features_lstm=num_features_lstm)
 
-model_classification = model_class(
-    input_size=14, hidden_size=model_params["hyperparameters"]["hidden_size"], num_layers=model_params["hyperparameters"]["num_layers"], output_size=3)
+model_classification = classification_model_class(
+    input_size=classification_model_input_size, hidden_size=classification_model_params[
+        "hyperparameters"]["hidden_size"],
+    num_layers=classification_model_params["hyperparameters"]["num_layers"], output_size=3)
 model_classification.load_state_dict(
     torch.load(str(classification_path.absolute()), map_location='cpu'))
 model_classification.eval()
@@ -147,7 +150,7 @@ model_classification = model_classification.to(device)
 transform = transforms.Compose([transforms.ToTensor()])
 window = np.zeros([window_length, features_num])
 window_classification = np.zeros(
-    [window_classification_length, features_num_classification])
+    [window_classification_length, classification_model_input_size])
 # Create message for publishing model output (will be used in saceDataNode.py)
 model_msg = Floats()
 
@@ -188,7 +191,7 @@ def contact_detection(data):
     # data input prep for classification
     features = np.array(data.tau_J_d) - np.array(data.tau_J)  # etau
     features = np.concatenate([features, e_q])
-    features = features.reshape((1, features_num_classification))
+    features = features.reshape((1, classification_model_input_size))
     window_classification = np.append(
         window_classification[1:, :], features, axis=0)
 
