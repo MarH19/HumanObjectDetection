@@ -54,10 +54,37 @@ number of layers: 4
 hidden size: 256
 modification_time: 2024-04-11 19:29:57
 
+model name: single_left_offset20240410_c4_norm
+epochs: 100
+learning rate: 0.01
+number of layers: 1
+hidden size: 64
+modification_time: 2024-04-17 11:59:20
+
+model name: sliding_left_offset_norm
+epochs: 100
+learning rate: 0.001
+number of layers: 2
+hidden size: 128
+modification_time: 2024-04-17 12:02:47
+
+model name: sliding_left_offset20240410_c4_norm
+epochs: 250
+learning rate: 0.001
+number of layers: 2
+hidden size: 32
+modification_time: 2024-04-17 16:34:45
+
+model name: sliding_left_offset_norm
+epochs: 250
+learning rate: 0.001
+number of layers: 2
+hidden size: 128
+modification_time: 2024-04-17 19:34:16
+
 model name: single_on_contact20240410_c4
 epochs: 100
 learning rate: 0.01
 number of layers: 1
 hidden size: 64
 modification_time: 2024-04-17 17:11:14
-
