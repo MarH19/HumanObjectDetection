@@ -88,3 +88,10 @@ learning rate: 0.01
 number of layers: 1
 hidden size: 64
 modification_time: 2024-04-17 17:11:14
+model name: LSTMModel_single_left_offset
+epochs: 150
+learning rate: 0.01
+number of layers: 2
+hidden size: 128
+modification_time: 2024-04-18 10:31:24
+

@@ -37,6 +37,20 @@ class RNNModel(nn.Module):
     def forward(self, x):
         pass
 
+    def get_probabilities(self, logits):
+        calc = nn.Sigmoid() if self.output_size == 1 else nn.Softmax(dim=1)
+        return calc(logits)
+
+    def get_predictions(self, logits):
+        probabilities = self.get_probabilities(logits)
+        if self.output_size == 1:
+            return (probabilities.squeeze() > 0.5).cpu().numpy()
+        else:
+            return torch.argmax(probabilities, dim=1).cpu().numpy()
+
+    def get_criterion(self):
+        return nn.BCEWithLogitsLoss() if self.output_size == 1 else nn.CrossEntropyLoss()
+
 
 class LSTMModel(RNNModel):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
@@ -45,7 +59,6 @@ class LSTMModel(RNNModel):
         self.lstm = nn.LSTM(input_size, hidden_size,
                             num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, output_size)
-        self.output_calc = nn.Sigmoid() if output_size == 1 else nn.Softmax(dim=1)
 
     def forward(self, x):
         h0 = torch.zeros(self.num_layers, x.size(
@@ -53,5 +66,21 @@ class LSTMModel(RNNModel):
         c0 = torch.zeros(self.num_layers, x.size(
             0), self.hidden_size).to(x.device)
         lstm_out, _ = self.lstm(x, (h0, c0))
-        z = self.fc(lstm_out[:, -1, :])
-        return self.output_calc(z)
+        return self.fc(lstm_out[:, -1, :])
+
+
+class GRUModel(RNNModel):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(GRUModel, self).__init__(input_size=input_size,
+                                       hidden_size=hidden_size, num_layers=num_layers, output_size=output_size)
+        self.gru = nn.GRU(input_size, hidden_size,
+                          num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(
+            0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(
+            0), self.hidden_size).to(x.device)
+        gru_out, _ = self.gru(x, (h0, c0))
+        return self.fc(gru_out[:, -1, :])

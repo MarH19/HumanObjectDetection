@@ -84,7 +84,7 @@ class RNNModelTrainer():
                 model = model.to(self.device)
 
                 # Define loss function and optimizer
-                criterion = nn.BCELoss() if self.hyperparameters.output_size == 1 else nn.CrossEntropyLoss()
+                criterion = model.get_criterion()
                 optimizer = optim.Adam(model.parameters(), lr=hp.learning_rate)
 
                 # Train the model
@@ -95,21 +95,14 @@ class RNNModelTrainer():
                     loss.backward()
                     optimizer.step()
 
-                # Calculate validation loss
+                # Calculate validation loss and accuracy
                 with torch.no_grad():
                     val_outputs = model(X_val_tensor)
                     val_loss = criterion(val_outputs, y_val_tensor)
-                    if self.hyperparameters.output_size == 1:
-                        predictions = (
-                            val_outputs.squeeze() > 0.5).cpu().numpy()
-                    else:
-                        predictions = torch.argmax(
-                            val_outputs, dim=1).cpu().numpy()
-
-                    # Calculate accuracy
+                    validation_losses.append(val_loss.item())
+                    predictions = model.get_predictions(val_outputs)
                     accuracies.append(
                         np.mean(predictions == y_val_tensor.cpu().numpy()))
-                    validation_losses.append(val_loss.item())
 
             average_validation_loss = sum(
                 validation_losses) / len(validation_losses)
@@ -141,7 +134,7 @@ class RNNModelTrainer():
                 self.y_train, dtype=torch.long).to(self.device)
 
         # Define loss function and optimizer
-        criterion = nn.BCELoss() if self.hyperparameters.output_size == 1 else nn.CrossEntropyLoss()
+        criterion = model.get_criterion()
         optimizer = optim.Adam(
             model.parameters(), lr=self.hyperparameters.best_hyperparameters.learning_rate)
 
@@ -177,11 +170,7 @@ class RNNModelTrainer():
         # Perform inference
         with torch.no_grad():
             outputs = model(X_test_tensor)
-
-        if self.hyperparameters.output_size == 1:
-            predictions = (outputs.squeeze() > 0.5).cpu().numpy()
-        else:
-            predictions = torch.argmax(outputs, dim=1).cpu().numpy()
+            predictions = model.get_predictions(outputs)
 
         # Calculate accuracy
         accuracy = np.mean(predictions == self.y_test)
@@ -254,10 +243,10 @@ if __name__ == '__main__':
     # specify dataset-files (via file suffix)
     # dataset with a single extracted time-window per contact, beginning at exact first contact time
     # files_suffix = "single_on_contact"
-    files_suffix = "single_on_contact20240410_c4"
+    # files_suffix = "single_on_contact20240410_c4"
 
     # dataset with one extracted time-window per contact, beginning 100ms (= 20 robot data rows) before first contact time
-    # files_suffix = "single_left_offset20240410_c4"
+    files_suffix = "single_left_offset"
 
     # dataset with multiple extracted (sliding) time-windows per contact, beginning 100ms before contact time, until end of contact is reached
     # sliding window step is 4 robot data rows = 20ms
