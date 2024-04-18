@@ -88,5 +88,15 @@
             "num_layers": 2,
             "hidden_size": 128
         }
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset",
+        "modification_time": "2024-04-18 15:59:49",
+        "hyperparameters": {
+            "hidden_size": 64,
+            "num_layers": 4,
+            "epochs": 250,
+            "learning_rate": 0.01
+        }
     }
 ]

@@ -21,9 +21,9 @@ from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel,
                                         RNNModelHyperParameters,
                                         RNNModelHyperParameterSet)
 
-# ===============================================================================================================================================
-# on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
-# ===============================================================================================================================================
+# ===========================================================================================================================================================
+# on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjectDetectionEnv)
+# ===========================================================================================================================================================
 
 model_classes: list[Type[RNNModel]] = [LSTMModel, GRUModel]
 
@@ -244,7 +244,12 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet)
     model_params_list.append({
         'model_name': model_name,
         'modification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'hyperparameters': hyperparameters.__dict__
+        'hyperparameters': {
+            "hidden_size": int(hyperparameters.hidden_size),
+            "num_layers": int(hyperparameters.num_layers),
+            "epochs": int(hyperparameters.epochs),
+            "learning_rate": float(hyperparameters.learning_rate)
+        }
     })
 
     with open(str(file_path.absolute()), 'w') as f:
@@ -307,7 +312,7 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(
         X, LabelEncoder().fit_transform(y), test_size=0.1)
 
-    files_suffix = X_file.name.replace("x_", "")
+    files_suffix = X_file.name.replace("x_", "").replace(".npy", "")
     if normalize:
         X_train = (X_train - X_train.min(axis=2, keepdims=True)) / \
             (X_train.max(axis=2, keepdims=True) -
