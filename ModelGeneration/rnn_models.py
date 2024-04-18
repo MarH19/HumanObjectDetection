@@ -37,12 +37,7 @@ class RNNModel(nn.Module):
         self.rnn_model = None
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(
-            0), self.hidden_size).to(x.device)
-        c0 = torch.zeros(self.num_layers, x.size(
-            0), self.hidden_size).to(x.device)
-        rnn_out, _ = self.rnn_model(x, (h0, c0))
-        return self.fc(rnn_out[:, -1, :])
+        pass
 
     def get_probabilities(self, logits):
         calc = nn.Sigmoid() if self.output_size == 1 else nn.Softmax(dim=1)
@@ -66,6 +61,14 @@ class LSTMModel(RNNModel):
         self.rnn_model = nn.LSTM(input_size, hidden_size,
                                  num_layers, batch_first=True)
 
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(
+            0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(
+            0), self.hidden_size).to(x.device)
+        lstm_out, _ = self.rnn_model(x, (h0, c0))
+        return self.fc(lstm_out[:, -1, :])
+
 
 class GRUModel(RNNModel):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
@@ -73,3 +76,9 @@ class GRUModel(RNNModel):
                                        hidden_size=hidden_size, num_layers=num_layers, output_size=output_size)
         self.rnn_model = nn.GRU(input_size, hidden_size,
                                 num_layers, batch_first=True)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(
+            0), self.hidden_size).to(x.device)
+        gru_out, _ = self.rnn_model(x, h0)
+        return self.fc(gru_out[:, -1, :])

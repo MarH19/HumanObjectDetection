@@ -1,4 +1,3 @@
-import sys
 import json
 import os
 from datetime import datetime
@@ -20,7 +19,7 @@ from sklearn.preprocessing import LabelEncoder
 # on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
 # ===============================================================================================================================================
 
-model_classes = [LSTMModel, GRUModel]
+model_classes: list[Type[RNNModel]] = [LSTMModel, GRUModel]
 
 hidden_sizes = [32, 64, 128, 256]
 num_layers = [1, 2, 3, 4]
@@ -246,31 +245,53 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet)
         json.dump(model_params_list, f, indent=4)
 
 
+def choose_model_class():
+    lines = [f'{i} {t.__name__}' for i, t in enumerate(model_classes)]
+    print("RNN Model Classes:")
+    print('\n'.join(lines) + '\n')
+    model_class_index = None
+    while model_class_index not in np.arange(0, len(model_classes), 1):
+        model_class_index = int(input(
+            "Which model class should be trained? (choose by index): "))
+    return model_classes[model_class_index]
+
+
+def choose_dataset():
+    processed_data_path = Path(os.environ.get(
+        "DATASET_REPO_ROOT_PATH")) / "processedData"
+    datasets = dict([(str(i), p) for i, p in enumerate(processed_data_path.iterdir())
+                     if p.is_file and p.name.startswith("x_") and p.suffix == ".npy"])
+    lines = [f'{key} {value.name}' for key, value in datasets.items()]
+    print("Datasets:")
+    print('\n'.join(lines) + '\n')
+    dataset_key = None
+    while dataset_key not in datasets:
+        dataset_key = input(
+            "Which dataset should be used? (choose by index): ")
+    return datasets[dataset_key]
+
+
+def choose_normalization_mode():
+    normalization_choice = ""
+    while normalization_choice not in ["y", "n"]:
+        normalization_choice = input(
+            "Should the data be normalized? (y / n): ").lower()
+    return True if normalization_choice == "y" else False
+
+
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
+
+    model_class = choose_model_class()
+    X_file = choose_dataset()
+    normalize = choose_normalization_mode()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
 
-    # specify dataset-files (via file suffix)
-    # dataset with a single extracted time-window per contact, beginning at exact first contact time
-    # files_suffix = "single_on_contact"
-    # files_suffix = "single_on_contact20240410_c4"
-
-    # dataset with one extracted time-window per contact, beginning 100ms (= 20 robot data rows) before first contact time
-    files_suffix = "single_left_offset"
-
-    # dataset with multiple extracted (sliding) time-windows per contact, beginning 100ms before contact time, until end of contact is reached
-    # sliding window step is 4 robot data rows = 20ms
-    # files_suffix = "sliding_left_offset"
-    # files_suffix = "sliding_left_offset20240410_c4"
-
-    X_file, y_file = f"x_{files_suffix}.npy", f"y_{files_suffix}.npy"
-
-    processed_data_folder_path = Path(os.environ.get(
-        "DATASET_REPO_ROOT_PATH")) / "processedData"
-    X = np.load(str((processed_data_folder_path / X_file).absolute()))
-    y = np.load(str((processed_data_folder_path / y_file).absolute()))
+    X = np.load(str(X_file.absolute()))
+    y = np.load(
+        str((X_file.parent / X_file.name.replace("x_", "y_")).absolute()))
 
     # filter X features to fit model
     # (as of 02.04.2024) all datasets contain the following features in that order (torque- / position- / velocity errors):
@@ -280,7 +301,7 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(
         X, LabelEncoder().fit_transform(y), test_size=0.1)
 
-    normalize = False
+    files_suffix = X_file.name.replace("x_", "")
     if normalize:
         X_train = (X_train - X_train.min(axis=2, keepdims=True)) / \
             (X_train.max(axis=2, keepdims=True)-X_train.min(axis=2, keepdims=True))
@@ -288,7 +309,6 @@ if __name__ == '__main__':
             (X_test.max(axis=2, keepdims=True)-X_test.min(axis=2, keepdims=True))
         files_suffix += "_norm"
 
-    model_class = LSTMModel
     rnn_model_trainer = RNNModelTrainer(
         device=device,
         model_class=model_class,
