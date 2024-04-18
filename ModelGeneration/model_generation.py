@@ -1,5 +1,9 @@
-import json
 import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Type
@@ -9,11 +13,13 @@ import numpy as np
 import torch
 import torch.optim as optim
 from dotenv import find_dotenv, load_dotenv
-from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, RNNModelHyperParameters,
-                                        RNNModelHyperParameterSet)
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder
+
+from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel,
+                                        RNNModelHyperParameters,
+                                        RNNModelHyperParameterSet)
 
 # ===============================================================================================================================================
 # on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
@@ -304,9 +310,10 @@ if __name__ == '__main__':
     files_suffix = X_file.name.replace("x_", "")
     if normalize:
         X_train = (X_train - X_train.min(axis=2, keepdims=True)) / \
-            (X_train.max(axis=2, keepdims=True)-X_train.min(axis=2, keepdims=True))
+            (X_train.max(axis=2, keepdims=True) -
+             X_train.min(axis=2, keepdims=True))
         X_test = (X_test - X_test.min(axis=2, keepdims=True)) / \
-            (X_test.max(axis=2, keepdims=True)-X_test.min(axis=2, keepdims=True))
+            (X_test.max(axis=2, keepdims=True) - X_test.min(axis=2, keepdims=True))
         files_suffix += "_norm"
 
     rnn_model_trainer = RNNModelTrainer(
