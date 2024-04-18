@@ -9,8 +9,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 from dotenv import find_dotenv, load_dotenv
-from rnn_models import (GRUModel, LSTMModel, RNNModel, RNNModelHyperParameters,
-                        RNNModelHyperParameterSet)
+from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, RNNModelHyperParameters,
+                                        RNNModelHyperParameterSet)
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -245,14 +245,14 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet)
         json.dump(model_params_list, f, indent=4)
 
 
-def choose_model_class():
+def choose_model_class() -> Type[RNNModel]:
     lines = [f'{i} {t.__name__}' for i, t in enumerate(model_classes)]
     print("RNN Model Classes:")
     print('\n'.join(lines) + '\n')
     model_class_index = None
     while model_class_index not in np.arange(0, len(model_classes), 1):
         model_class_index = int(input(
-            "Which model class should be trained? (choose by index): "))
+            "Which model class should be used? (choose by index): "))
     return model_classes[model_class_index]
 
 
