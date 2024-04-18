@@ -63,10 +63,11 @@ from torchvision import transforms
 from ModelGeneration.model_generation import choose_model_class
 from ModelGeneration.rnn_models import RNNModel
 
+repo_root_path = Path(__file__).parents[1]
+
 
 def choose_trained_model(model_class: Type[RNNModel]):
-    trained_models_path = Path(
-        __file__).parents[1] / "ModelGeneration" / "TrainedModels"
+    trained_models_path = repo_root_path / "ModelGeneration" / "TrainedModels"
     with open(str((trained_models_path / "RnnModelsParameters.json").absolute()), 'r') as f:
         model_params_list = json.load(f)
     model_params_list = [
@@ -84,11 +85,24 @@ def choose_trained_model(model_class: Type[RNNModel]):
     return model_params_list[model_params_index]
 
 
-repo_root_path = Path(__file__).parents[1]
+def choose_robot_motion():
+    robot_motions_path = repo_root_path / "frankaRobot" / "robotMotionPoints"
+    robot_motions = dict([(str(i), p) for i, p in enumerate(robot_motions_path.iterdir())
+                          if p.is_file and p.suffix == ".csv"])
+    lines = [f'{key} {value.name}' for key, value in robot_motions.items()]
+    print("Robot Motions:")
+    print('\n'.join(lines) + '\n')
+    robot_motion_key = None
+    while robot_motion_key not in robot_motions:
+        robot_motion_key = input(
+            "Which robot motion should be used? (choose by index): ")
+    return robot_motions[robot_motion_key]
+
 
 # choose model type and trained model parameters
 model_class = choose_model_class()
 model_params = choose_trained_model(model_class)
+robot_motion_path = choose_robot_motion()
 print()
 
 # Define parameters for the RNN models
@@ -114,11 +128,7 @@ features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
 features_num_classification = 14
 dof = 7
 
-# Define paths for joint motion data
-joints_data_path = repo_root_path / 'frankaRobot' / \
-    'robotMotionPoints' / 'robotMotionJointData_c4.csv'
-
-# load model
+# load models
 model_contact, labels_map_contact = import_lstm_models(
     PATH=str(contact_detection_path.absolute()), num_features_lstm=num_features_lstm)
 
@@ -217,7 +227,7 @@ def contact_detection(data):
 
 def move_robot(fa: FrankaArm, event: Event):
 
-    joints = pd.read_csv(joints_data_path)
+    joints = pd.read_csv(str(robot_motion_path.absolute()))
 
     # preprocessing
     joints = joints.iloc[:, 1:8]
