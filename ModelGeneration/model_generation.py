@@ -1,3 +1,5 @@
+import sys
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -6,10 +8,10 @@ from typing import Type
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from dotenv import find_dotenv, load_dotenv
-from rnn_models import LSTMModel, RNNModel, RNNModelHyperParameters, RNNModelHyperParameterSet
+from rnn_models import (GRUModel, LSTMModel, RNNModel, RNNModelHyperParameters,
+                        RNNModelHyperParameterSet)
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -17,6 +19,15 @@ from sklearn.preprocessing import LabelEncoder
 # ===============================================================================================================================================
 # on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjDetEnv)
 # ===============================================================================================================================================
+
+model_classes = [LSTMModel, GRUModel]
+
+hidden_sizes = [32, 64, 128, 256]
+num_layers = [1, 2, 3, 4]
+epochs = np.arange(50, 251, 50)
+learning_rates = [0.001, 0.01, 0.1]
+input_size = 14
+output_size = 3
 
 
 def get_trained_models_path():
@@ -217,21 +228,22 @@ def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], f
 
 
 def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet):
-    best_params = {
-        "model name": model_name,
-        "epochs": hyperparameters.epochs,
-        "learning rate": hyperparameters.learning_rate,
-        "number of layers": hyperparameters.num_layers,
-        "hidden size": hyperparameters.hidden_size,
-        'modification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }
+    model_params_list = []
+    file_path = get_trained_models_path() / "RnnModelsParameters.json"
+    if os.path.exists(str(file_path.absolute())):
+        with open(str(file_path.absolute()), 'r') as f:
+            model_params_list = json.load(f)
 
-    file_path = get_trained_models_path() / "parameter_file.txt"
-    mode = 'a' if os.path.exists(str(file_path.absolute())) else 'w'
-    with open(str(file_path.absolute()), mode) as f:
-        for key, value in best_params.items():
-            f.write(f"{key}: {value}\n")
-        f.write("\n")
+    model_params_list = [
+        i for i in model_params_list if i["model_name"] != model_name]
+    model_params_list.append({
+        'model_name': model_name,
+        'modification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'hyperparameters': hyperparameters.__dict__
+    })
+
+    with open(str(file_path.absolute()), 'w') as f:
+        json.dump(model_params_list, f, indent=4)
 
 
 if __name__ == '__main__':
@@ -277,8 +289,12 @@ if __name__ == '__main__':
         files_suffix += "_norm"
 
     model_class = LSTMModel
-    rnn_model_trainer = RNNModelTrainer(device=device, model_class=model_class, hyperparameters=RNNModelHyperParameters(
-        hidden_sizes=[32, 64, 128], num_layers=[1, 2], epochs=[100, 150], learning_rates=[0.001, 0.01, 0.1], input_size=14, output_size=3),
+    rnn_model_trainer = RNNModelTrainer(
+        device=device,
+        model_class=model_class,
+        hyperparameters=RNNModelHyperParameters(
+            hidden_sizes=hidden_sizes, num_layers=num_layers, epochs=epochs,
+            learning_rates=learning_rates, input_size=input_size, output_size=output_size),
         X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
 
     # k-fold cross validation for hyperparameters

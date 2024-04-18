@@ -1,0 +1,92 @@
+[
+    {
+        "model_name": "LSTMModel_sliding_left_offset",
+        "modification_time": "2024-04-05 16:31:31",
+        "hyperparameters": {
+            "epochs": 100,
+            "learning_rate": 0.01,
+            "num_layers": 1,
+            "hidden_size": 128
+        }
+    },
+    {
+        "model_name": "LSTMModel_single_on_contact",
+        "modification_time": "2024-04-10 10:22:33",
+        "hyperparameters": {
+            "epochs": 100,
+            "learning_rate": 0.001,
+            "num_layers": 1,
+            "hidden_size": 256
+        }
+    },
+    {
+        "model_name": "LSTMModel_single_left_offset20240410",
+        "modification_time": "2024-04-10 16:42:36",
+        "hyperparameters": {
+            "epochs": 100,
+            "learning_rate": 0.001,
+            "num_layers": 1,
+            "hidden_size": 256
+        }
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset20240410_c4",
+        "modification_time": "2024-04-10 21:31:46",
+        "hyperparameters": {
+            "epochs": 100,
+            "learning_rate": 0.01,
+            "num_layers": 1,
+            "hidden_size": 256
+        }
+    },
+    {
+        "model_name": "LSTMModel_single_left_offset20240410_c4_norm",
+        "modification_time": "2024-04-17 11:59:20",
+        "hyperparameters": {
+            "epochs": 100,
+            "learning_rate": 0.01,
+            "num_layers": 1,
+            "hidden_size": 64
+        }
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset20240410_c4_norm",
+        "modification_time": "2024-04-17 16:34:45",
+        "hyperparameters": {
+            "epochs": 250,
+            "learning_rate": 0.001,
+            "num_layers": 2,
+            "hidden_size": 32
+        }
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset_norm",
+        "modification_time": "2024-04-17 19:34:16",
+        "hyperparameters": {
+            "epochs": 250,
+            "learning_rate": 0.001,
+            "num_layers": 2,
+            "hidden_size": 128
+        }
+    },
+    {
+        "model_name": "LSTMModel_single_on_contact20240410_c4",
+        "modification_time": "2024-04-17 17:11:14",
+        "hyperparameters": {
+            "epochs": 100,
+            "learning_rate": 0.01,
+            "num_layers": 1,
+            "hidden_size": 64
+        }
+    },
+    {
+        "model_name": "LSTMModel_single_left_offset",
+        "modification_time": "2024-04-18 10:31:24",
+        "hyperparameters": {
+            "epochs": 150,
+            "learning_rate": 0.01,
+            "num_layers": 2,
+            "hidden_size": 128
+        }
+    }
+]
