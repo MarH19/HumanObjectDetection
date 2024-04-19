@@ -70,6 +70,22 @@ class LSTMModel(RNNModel):
         return self.fc(lstm_out[:, -1, :])
 
 
+class LSTMModelWithLayerNorm(LSTMModel):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(LSTMModelWithLayerNorm, self).__init__(input_size=input_size,
+                                        hidden_size=hidden_size, num_layers=num_layers, output_size=output_size)
+        self.layer_norm = nn.LayerNorm(hidden_size)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(
+            0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(
+            0), self.hidden_size).to(x.device)
+        out, _ = self.rnn_model(x, (h0, c0))
+        out = self.layer_norm(out)
+        return self.fc(out[:, -1, :])
+
+
 class GRUModel(RNNModel):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
         super(GRUModel, self).__init__(input_size=input_size,
