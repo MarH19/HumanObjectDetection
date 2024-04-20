@@ -6,8 +6,10 @@ import os
 import json
 from datetime import datetime
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder,StandardScaler
 from copy import deepcopy
+
+
 def Initialization(config):
     if config['seed'] is not None:
         torch.manual_seed(config['seed'])
@@ -16,6 +18,7 @@ def Initialization(config):
     if device == 'cuda':
         logger.info("Device index: {}".format(torch.cuda.current_device()))
     return device
+
 def Setup(args):
     """
         Input:
@@ -34,10 +37,10 @@ def Setup(args):
     output_dir = os.path.join(output_dir,model, initial_timestamp.strftime("%Y-%m-%d_%H-%M"))
     config['output_dir'] = output_dir
     config['save_dir'] = os.path.join(output_dir, 'checkpoints')
-    config['pred_dir'] = os.path.join(output_dir, 'predictions')
-    config['tensorboard_dir'] = os.path.join(output_dir, 'tb_summaries')
-    create_dirs([config['save_dir'], config['pred_dir'], config['tensorboard_dir']])
-
+    #config['pred_dir'] = os.path.join(output_dir, 'predictions')
+    #config['tensorboard_dir'] = os.path.join(output_dir, 'tb_summaries')
+    #create_dirs([config['save_dir'], config['pred_dir'], config['tensorboard_dir']])
+    create_dirs([config['save_dir']])
     # Save configuration as a (pretty) json file
     with open(os.path.join(output_dir, 'configuration.json'), 'w') as fp:
         json.dump(config, fp, indent=4, sort_keys=True)
@@ -69,13 +72,17 @@ class myDataLoader(torch.utils.data.Dataset):
     self.y = np.load(y_path)
     label_encoder = LabelEncoder()
     self.y = label_encoder.fit_transform(self.y)
+    self.X = np.swapaxes(self.X, 1, 2) # swap axes such that #samples, #features #winwdowlength
 
     # Split data into train/test sets
     self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=test_size, random_state=random_state)
     
     if normalize:
-        self.X_train = (self.X_train - self.X_train.min(axis=2, keepdims=True)) / (self.X_train.max(axis=2,keepdims=True)-self.X_train.min(axis=2, keepdims=True))
-        self.X_test = (self.X_test - self.X_test.min(axis=2, keepdims=True)) / (self.X_test.max(axis=2,keepdims=True)-self.X_test.min(axis=2, keepdims=True))
+        for i in range(self.X_train.shape[1]):
+            scaler = StandardScaler()
+            self.X_train[:, i, :] = scaler.fit_transform(self.X_train[:, i,:]) 
+            self.X_test[:, i, :] = scaler.transform(self.X_test[:, i, :]) 
+     
        
     # Further split train data into train/val sets
     if val_size > 0:

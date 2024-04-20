@@ -20,14 +20,14 @@ parser.add_argument('--output_dir', default=r'C:\Users\marco\master_project\huma
 parser.add_argument('--xfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\x_sliding_left_offset.npy", type=str, help='specify which x file you want to load')
 parser.add_argument('--yfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\y_sliding_left_offset.npy", type=str, help='specify which y file you want to load')
 parser.add_argument('--Norm', type=bool, default=False, help='Data Normalization')
-parser.add_argument('--val_ratio', type=float, default=0.2, help="Proportion of the train-set to be used as validation")
+parser.add_argument('--val_ratio', type=float, default=0.1, help="Proportion of the train-set to be used as validation")
 parser.add_argument('--print_interval', type=int, default=10, help='Print batch info every this many batches')
 # ----------------------------------------------------------------------------------------------------------------------
 # ------------------------------------- Model Parameter and Hyperparameter ---------------------------------------------
 parser.add_argument('--Net_Type', default=['C-T'], choices={'T', 'C-T'}, help="Network Architecture. Convolution (C)"
                                                                               "Transformers (T)")
 # Transformers Parameters ------------------------------
-parser.add_argument('--emb_size', type=int, default=16, help='Internal dimension of transformer embeddings')
+parser.add_argument('--emb_size', type=int, default=16, help='Internal dimension of transformer embeddings') #default 16
 parser.add_argument('--dim_ff', type=int, default=256, help='Dimension of dense feedforward part of transformer layer')
 parser.add_argument('--num_heads', type=int, default=8, help='Number of multi-headed attention heads')
 parser.add_argument('--Fix_pos_encode', choices={'tAPE', 'Learn', 'None'}, default='tAPE',
@@ -36,9 +36,9 @@ parser.add_argument('--Rel_pos_encode', choices={'eRPE', 'Vector', 'None'}, defa
                     help='Relative Position Embedding')
 # Training Parameters/ Hyper-Parameters ----------------
 parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
-parser.add_argument('--batch_size', type=int, default=16, help='Training batch size')
+parser.add_argument('--batch_size', type=int, default=256, help='Training batch size')
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
-parser.add_argument('--dropout', type=float, default=0.01, help='Droupout regularization ratio')
+parser.add_argument('--dropout', type=float, default=0.2, help='Droupout regularization ratio') # 0.01 default
 parser.add_argument('--val_interval', type=int, default=2, help='Evaluate on validation every XX epochs. Must be >= 1')
 parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='accuracy',
                     help='Metric used for defining best epoch')

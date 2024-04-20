@@ -78,7 +78,6 @@ class SupervisedTrainer(BaseTrainer):
             X, targets, IDs = batch
             targets = targets.to(self.device)
             predictions = self.model(X.to(self.device))
-
             loss = self.loss_module(predictions, targets)  # (batch_size,) loss for each sample in the batch
             batch_loss = torch.sum(loss)
             mean_loss = batch_loss / len(loss)  # mean loss (over samples) used for optimization
@@ -170,23 +169,8 @@ class SupervisedTrainer(BaseTrainer):
 
 def validate(val_evaluator, tensorboard_writer, config, best_metrics, best_value, epoch):
     """Run an evaluation on the validation set while logging metrics, and handle outcome"""
-
-    #logger.info("Evaluating on validation set ...")
-    #eval_start_time = time.time()
     with torch.no_grad():
         aggr_metrics, ConfMat = val_evaluator.evaluate(epoch, keep_all=True)
-    #eval_runtime = time.time() - eval_start_time
-    #logger.info("Validation runtime: {} hours, {} minutes, {} seconds\n".format(*utils.readable_time(eval_runtime)))
-
-    #global val_times
-   # val_times["total_time"] += eval_runtime
-    #val_times["count"] += 1
-    #avg_val_time = val_times["total_time"] / val_times["count"]
-    #avg_val_batch_time = avg_val_time / len(val_evaluator.dataloader)
-    #avg_val_sample_time = avg_val_time / len(val_evaluator.dataloader.dataset)
-    #logger.info("Avg val. time: {} hours, {} minutes, {} seconds".format(*utils.readable_time(avg_val_time)))
-    #logger.info("Avg batch val. time: {} seconds".format(avg_val_batch_time))
-    #logger.info("Avg sample val. time: {} seconds".format(avg_val_sample_time))
 
     print()
     print_str = 'Validation Summary: '
@@ -203,9 +187,6 @@ def validate(val_evaluator, tensorboard_writer, config, best_metrics, best_value
         best_value = aggr_metrics[config['key_metric']]
         utils.save_model(os.path.join(config['save_dir'], 'model_best.pth'), epoch, val_evaluator.model)
         best_metrics = aggr_metrics.copy()
-
-        #pred_filepath = os.path.join(config['pred_dir'], 'best_predictions')
-        # np.savez(pred_filepath, **per_batch)
 
     return aggr_metrics, best_metrics, best_value
 
