@@ -138,5 +138,15 @@
             "epochs": 250,
             "learning_rate": 0.01
         }
+    },
+    {
+        "model_name": "LSTMModelWithLayerNorm_sliding_left_offset",
+        "modification_time": "2024-04-19 12:00:00",
+        "hyperparameters": {
+            "hidden_size": 256,
+            "num_layers": 1,
+            "epochs": 250,
+            "learning_rate": 0.01
+        }
     }
 ]
