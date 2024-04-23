@@ -16,7 +16,7 @@ from dotenv import find_dotenv, load_dotenv
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-
+from earlystopping import EarlyStopper
 from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, GRUModelWithLayerNorm, LSTMModelWithLayerNorm,
                                         RNNModelHyperParameters,
                                         RNNModelHyperParameterSet)
@@ -27,10 +27,10 @@ from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, GRUModelW
 
 model_classes: list[Type[RNNModel]] = [LSTMModel, LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
 
-hidden_sizes = [32, 64, 128, 256]
-num_layers = [1, 2, 3, 4]
-epochs = np.arange(50, 251, 50)
-learning_rates = [0.001, 0.01, 0.1]
+hidden_sizes = [32, 64,128]#, 256]
+num_layers = [1, 2]#, 3, 4]
+epochs = np.arange(50, 151, 50)
+learning_rates = [0.001, 0.01]
 input_size = 14
 output_size = 3
 
@@ -45,7 +45,7 @@ def get_model_params_path(model_prefix, file_suffix):
 
 
 class RNNModelTrainer():
-    def __init__(self, device, model_class: Type[RNNModel], hyperparameters: RNNModelHyperParameters, X_train, y_train, X_test, y_test):
+    def __init__(self, device, model_class: Type[RNNModel], hyperparameters: RNNModelHyperParameters, X_train, y_train, X_test, y_test,optimizer="Adam"):
         self.device = device
         self.model_class = model_class
         self.hyperparameters = hyperparameters
@@ -53,6 +53,7 @@ class RNNModelTrainer():
         self.y_train = y_train
         self.X_test = X_test
         self.y_test = y_test
+        self.optimizer = optimizer
 
     def get_kFold_cross_validation_tensors(self, train_indices, val_indices):
         X_train_fold = self.X_train[train_indices]
@@ -101,7 +102,11 @@ class RNNModelTrainer():
 
                 # Define loss function and optimizer
                 criterion = model.get_criterion()
-                optimizer = optim.Adam(model.parameters(), lr=hp.learning_rate)
+                if self.optimizer == "AdamW":
+                    optimizer = optim.AdamW(model.parameters(),lr=hp.learning_rate,weight_decay=0.01)
+                else:
+                    optimizer = optim.Adam(model.parameters(), lr=hp.learning_rate)
+                
 
                 # Train the model
                 for _ in range(hp.epochs):
@@ -139,7 +144,7 @@ class RNNModelTrainer():
         model = self.model_class(self.hyperparameters.input_size, self.hyperparameters.best_hyperparameters.hidden_size,
                                  self.hyperparameters.best_hyperparameters.num_layers, self.hyperparameters.output_size)
         model = model.to(self.device)
-
+        stopper = EarlyStopper()
         X_train_tensor = torch.tensor(
             self.X_train, dtype=torch.float32).to(self.device)
         if self.hyperparameters.output_size == 1:
@@ -151,8 +156,10 @@ class RNNModelTrainer():
 
         # Define loss function and optimizer
         criterion = model.get_criterion()
-        optimizer = optim.Adam(
-            model.parameters(), lr=self.hyperparameters.best_hyperparameters.learning_rate)
+        if self.optimizer == "AdamW":
+            optimizer = optim.AdamW(model.parameters(),lr=self.hyperparameters.best_hyperparameters.learning_rate,weight_decay=0.01)
+        else:
+            optimizer = optim.Adam(model.parameters(), lr=self.hyperparameters.best_hyperparameters.learning_rate)
 
         loss_values = []
         # Train the model
@@ -160,6 +167,9 @@ class RNNModelTrainer():
             optimizer.zero_grad()
             outputs = model(X_train_tensor)
             loss = criterion(outputs, y_train_tensor)
+            if stopper.early_stop(loss.item()):
+                self.hyperparameters.best_hyperparameters.epochs = epoch
+                break
             loss_values.append(loss.item())
             loss.backward()
             optimizer.step()
@@ -232,7 +242,7 @@ def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], f
     plt.close()
 
 
-def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet):
+def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet,optimizer):
     model_params_list = []
     file_path = get_trained_models_path() / "RnnModelsParameters.json"
     if os.path.exists(str(file_path.absolute())):
@@ -249,7 +259,8 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet)
             "num_layers": int(hyperparameters.num_layers),
             "epochs": int(hyperparameters.epochs),
             "learning_rate": float(hyperparameters.learning_rate)
-        }
+        },
+        'optimizer':optimizer
     })
 
     with open(str(file_path.absolute()), 'w') as f:
@@ -289,6 +300,13 @@ def choose_normalization_mode():
             "Should the data be normalized? (y / n): ").lower()
     return True if normalization_choice == "y" else False
 
+def choose_optimizer():
+    optimizer_choice = ""
+    while optimizer_choice not in ["0", "1"]:
+        optimizer_choice = input(
+            "Which optimizer do you want to use? (Adam=0 / AdamW=1): ").lower()
+    return "AdamW" if optimizer_choice == "1" else "Adam"
+
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
@@ -296,6 +314,7 @@ if __name__ == '__main__':
     model_class = choose_model_class()
     X_file = choose_dataset()
     normalize = choose_normalization_mode()
+    optimizer = choose_optimizer()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
@@ -326,7 +345,7 @@ if __name__ == '__main__':
         hyperparameters=RNNModelHyperParameters(
             hidden_sizes=hidden_sizes, num_layers=num_layers, epochs=epochs,
             learning_rates=learning_rates, input_size=input_size, output_size=output_size),
-        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
+        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,optimizer=optimizer)
 
     # k-fold cross validation for hyperparameters
     rnn_model_trainer.kFold_cross_validate(k=5)
@@ -338,7 +357,7 @@ if __name__ == '__main__':
             {rnn_model_trainer.hyperparameters.best_hyperparameters.hidden_size} hidden size""")
 
     save_hyperparameters(
-        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters)
+        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters,rnn_model_trainer.optimizer)
 
     # train and evaluate the model
     rnn_model_trainer.train_model(file_suffix=files_suffix)

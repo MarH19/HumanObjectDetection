@@ -17,7 +17,7 @@ NEG_METRICS = {'loss'}  # metrics for which "better" is less
 
 class BaseTrainer(object):
 
-    def __init__(self, model, dataloader, device, loss_module, optimizer=None, l2_reg=None, print_interval=10,
+    def __init__(self, model, dataloader, device, loss_module, optimizer=None, l2_reg=None,
                  console=True, print_conf_mat =False):
 
         self.model = model
@@ -26,7 +26,6 @@ class BaseTrainer(object):
         self.optimizer = optimizer
         self.loss_module = loss_module
         self.l2_reg = l2_reg
-        self.print_interval = print_interval
         self.printer = utils.Printer(console=console)
         self.print_conf_mat = print_conf_mat
         self.epoch_metrics = OrderedDict()
@@ -95,12 +94,6 @@ class SupervisedTrainer(BaseTrainer):
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=4.0)
             self.optimizer.step()
 
-            '''
-            metrics = {"loss": mean_loss.item()}
-            if i % self.print_interval == 0:
-                ending = "" if epoch_num is None else 'Epoch {} '.format(epoch_num)
-                self.print_callback(i, metrics, prefix='Training ' + ending)
-            '''
             with torch.no_grad():
                 total_samples += len(loss)
                 epoch_loss += batch_loss.item()  # add total loss of batch
@@ -134,9 +127,6 @@ class SupervisedTrainer(BaseTrainer):
             per_batch['IDs'].append(IDs)
 
             metrics = {"loss": mean_loss}
-            #if i % self.print_interval == 0:
-                #ending = "" if epoch_num is None else 'Epoch {} '.format(epoch_num)
-                #self.print_callback(i, metrics, prefix='Evaluating ' + ending)
 
             total_samples += len(loss)
             epoch_loss += batch_loss  # add total loss of batch

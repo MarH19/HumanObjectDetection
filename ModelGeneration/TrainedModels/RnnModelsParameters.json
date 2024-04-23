@@ -130,26 +130,6 @@
         }
     },
     {
-        "model_name": "LSTMModelWithLayerNorm_single_left_offset",
-        "modification_time": "2024-04-18 18:03:13",
-        "hyperparameters": {
-            "hidden_size": 256,
-            "num_layers": 1,
-            "epochs": 250,
-            "learning_rate": 0.01
-        }
-    },
-    {
-        "model_name": "LSTMModelWithLayerNorm_sliding_left_offset",
-        "modification_time": "2024-04-19 12:00:00",
-        "hyperparameters": {
-            "hidden_size": 256,
-            "num_layers": 1,
-            "epochs": 250,
-            "learning_rate": 0.01
-        }
-    },
-    {
         "model_name": "GRUModelWithLayerNorm_sliding_left_offset",
         "modification_time": "2024-04-20 14:30:34",
         "hyperparameters": {
@@ -158,5 +138,38 @@
             "epochs": 250,
             "learning_rate": 0.01
         }
+    },
+    {
+        "model_name": "LSTMModelWithLayerNorm_sliding_left_offset",
+        "modification_time": "2024-04-23 15:25:26",
+        "hyperparameters": {
+            "hidden_size": 64,
+            "num_layers": 1,
+            "epochs": 100,
+            "learning_rate": 0.01
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModelWithLayerNorm_single_left_offset",
+        "modification_time": "2024-04-23 15:52:27",
+        "hyperparameters": {
+            "hidden_size": 32,
+            "num_layers": 2,
+            "epochs": 150,
+            "learning_rate": 0.01
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModelWithLayerNorm_sliding_left_offset_norm",
+        "modification_time": "2024-04-23 16:42:25",
+        "hyperparameters": {
+            "hidden_size": 32,
+            "num_layers": 2,
+            "epochs": 150,
+            "learning_rate": 0.01
+        },
+        "optimizer": "AdamW"
     }
 ]

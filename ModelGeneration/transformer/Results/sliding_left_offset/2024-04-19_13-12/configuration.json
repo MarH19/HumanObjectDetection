@@ -16,7 +16,6 @@
     "lr": 0.001,
     "num_heads": 8,
     "output_dir": "C:\\Users\\marco\\master_project\\humanObjectDetection\\ModelGeneration\\transformer\\Results\\sliding_left_offset\\2024-04-19_13-12",
-    "print_interval": 10,
     "save_dir": "C:\\Users\\marco\\master_project\\humanObjectDetection\\ModelGeneration\\transformer\\Results\\sliding_left_offset\\2024-04-19_13-12\\checkpoints",
     "seed": 1234,
     "val_interval": 2,
