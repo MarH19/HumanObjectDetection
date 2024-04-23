@@ -34,14 +34,14 @@ parser.add_argument('--Fix_pos_encode', choices={'tAPE', 'Learn', 'None'}, defau
 parser.add_argument('--Rel_pos_encode', choices={'eRPE', 'Vector', 'None'}, default='eRPE',
                     help='Relative Position Embedding')
 # Training Parameters/ Hyper-Parameters ----------------
-parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
-parser.add_argument('--batch_size', type=int, default=256, help='Training batch size')
+parser.add_argument('--epochs', type=int, default=110, help='Number of training epochs')
+parser.add_argument('--batch_size', type=int, default=512, help='Training batch size')
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
 parser.add_argument('--dropout', type=float, default=0.2, help='Droupout regularization ratio') # 0.01 default
 parser.add_argument('--val_interval', type=int, default=2, help='Evaluate on validation every XX epochs. Must be >= 1')
 parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='accuracy',
                     help='Metric used for defining best epoch')
-parser.add_argument('--l2reg',type=bool,default=True,help='Add L2 regularization during training')
+parser.add_argument('--l2reg',type=float,default=0.01,help='Add L2 regularization during training')
 # ----------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------ System --------------------------------------------------------
 parser.add_argument('--gpu', type=int, default='0', help='GPU index, -1 for CPU')
@@ -69,21 +69,20 @@ if __name__ == '__main__':
     logger.info("Total number of parameters: {}".format(count_parameters(model)))
     # -------------------------------------------- Model Initialization ------------------------------------
     optim_class = get_optimizer("RAdam")
-    config['optimizer'] = optim_class(model.parameters(), lr=config['lr'], weight_decay=0)
+    config['optimizer'] = optim_class(model.parameters(), lr=config['lr'], decoupled_weight_decay=True, weight_decay=config['l2reg']) # decoupled.. for having RadamW
     config['loss_module'] = get_loss_module()
     save_path = os.path.join(config['save_dir'],'model_{}.pth'.format('last'))
     tensorboard_writer = SummaryWriter('summary')
     model.to(device)
     # ---------------------------------------------- Training The Model ------------------------------------
     logger.info('Starting training...')
-    trainer = SupervisedTrainer(model, train_loader, device, config['loss_module'], config['optimizer'], l2_reg=config['l2reg'], console=config['console'], print_conf_mat=False)
+    trainer = SupervisedTrainer(model, train_loader, device, config['loss_module'], config['optimizer'], console=config['console'], print_conf_mat=False)
     val_evaluator = SupervisedTrainer(model, val_loader, device, config['loss_module'], console=config['console'],
                                     print_conf_mat=False)
 
     train_runner(config, model, trainer, val_evaluator, save_path)
     best_model, optimizer, start_epoch = load_model(model, save_path, config['optimizer'])
     best_model.to(device)
-
     best_test_evaluator = SupervisedTrainer(best_model, test_loader, device, config['loss_module'], console=config['console'],
                                             print_conf_mat=True)
     best_aggr_metrics_test, all_metrics = best_test_evaluator.evaluate(keep_all=True,epoch_num=start_epoch)

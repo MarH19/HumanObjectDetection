@@ -189,7 +189,7 @@ class SaveBestModel:
 
 def load_model(model, model_path, optimizer=None, resume=False, change_output=False,
                lr=None, lr_step=None, lr_factor=None):
-    start_epoch = 0
+    
     checkpoint = torch.load(model_path, map_location=lambda storage, loc: storage)
     state_dict = deepcopy(checkpoint['state_dict'])
     if change_output:
@@ -198,7 +198,7 @@ def load_model(model, model_path, optimizer=None, resume=False, change_output=Fa
                 state_dict.pop(key)
     model.load_state_dict(state_dict, strict=False)
     print('Loaded model from {}. Epoch: {}'.format(model_path, checkpoint['epoch']))
-
+    start_epoch = checkpoint['epoch']
     # resume optimizer parameters
     if optimizer is not None and resume:
         if 'optimizer' in checkpoint:

@@ -7,7 +7,7 @@ import time
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
-from loss import l2_reg_loss
+
 import utils, analysis
 
 logger = logging.getLogger('__main__')
@@ -17,7 +17,7 @@ NEG_METRICS = {'loss'}  # metrics for which "better" is less
 
 class BaseTrainer(object):
 
-    def __init__(self, model, dataloader, device, loss_module, optimizer=None, l2_reg=None,
+    def __init__(self, model, dataloader, device, loss_module, optimizer=None,
                  console=True, print_conf_mat =False):
 
         self.model = model
@@ -25,7 +25,6 @@ class BaseTrainer(object):
         self.device = device
         self.optimizer = optimizer
         self.loss_module = loss_module
-        self.l2_reg = l2_reg
         self.printer = utils.Printer(console=console)
         self.print_conf_mat = print_conf_mat
         self.epoch_metrics = OrderedDict()
@@ -80,15 +79,10 @@ class SupervisedTrainer(BaseTrainer):
             loss = self.loss_module(predictions, targets)  # (batch_size,) loss for each sample in the batch
             batch_loss = torch.sum(loss)
             mean_loss = batch_loss / len(loss)  # mean loss (over samples) used for optimization
-
-            if self.l2_reg:
-                total_loss = mean_loss + self.l2_reg * l2_reg_loss(self.model)
-            else:
-                total_loss = mean_loss
-
+        
             # Zero gradients, perform a backward pass, and update the weights.
             self.optimizer.zero_grad()
-            total_loss.backward()
+            mean_loss.backward()
 
             # torch.nn.utils.clip_grad_value_(self.model.parameters(), clip_value=1.0)
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=4.0)
