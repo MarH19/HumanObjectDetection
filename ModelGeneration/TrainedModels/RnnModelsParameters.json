@@ -171,5 +171,16 @@
             "learning_rate": 0.01
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModelWithLayerNorm_sliding_left_offset20240410_c4",
+        "modification_time": "2024-04-24 15:20:57",
+        "hyperparameters": {
+            "hidden_size": 64,
+            "num_layers": 1,
+            "epochs": 200,
+            "learning_rate": 0.01
+        },
+        "optimizer": "AdamW"
     }
 ]

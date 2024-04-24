@@ -28,8 +28,8 @@ from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, GRUModelW
 model_classes: list[Type[RNNModel]] = [LSTMModel, LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
 
 hidden_sizes = [32, 64,128]#, 256]
-num_layers = [1, 2]#, 3, 4]
-epochs = np.arange(50, 151, 50)
+num_layers = [1, 2, 3, 4]
+epochs = np.arange(50, 201, 50)
 learning_rates = [0.001, 0.01]
 input_size = 14
 output_size = 3
