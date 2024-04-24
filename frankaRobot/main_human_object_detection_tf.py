@@ -25,7 +25,7 @@ By Maryam Rezayati
 		source /opt/ros/noetic/setup.bash
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_human_object_detection.py
+		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_human_object_detection_tf.py
 
 
 5. run save data node
@@ -47,6 +47,7 @@ import json
 from pathlib import Path
 from threading import Event
 from typing import Type
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -59,13 +60,12 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from std_msgs.msg import Float64
 from torchvision import transforms
+from sklearn.preprocessing import LabelEncoder
 
-from ModelGeneration.model_generation import choose_model_class
-from ModelGeneration.rnn_models import RNNModel
-from ModelGeneration.transformer import model
+from ModelGeneration.transformer.model import ConvTran
+
+
 repo_root_path = Path(__file__).parents[1]
-
-
 
 
 def choose_robot_motion():
@@ -96,7 +96,8 @@ features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
 dof = 7
 
 # Define parameters for the classification (human object detection) model
-labels_classification = {0: "hard", 1: "soft", 2: "plasticbottle"}
+labels_classification = {0: "hard", 1: "plasticbottle", 2: "soft"}
+
 window_classification_length = 40
 classification_model_input_size = 21 # transformer uses all features
 
@@ -111,17 +112,21 @@ contact_detection_path = repo_root_path / \
     'trainedModel_01_24_2024_11_18_01.pth'
 
 
-classification_path = "C:\Users\marco\master_project\humanObjectDetection\ModelGeneration\transformer\Results\sliding_left_offset\2024-04-19_13-12\checkpoints\model_last.pth"
+#classification_path = "C:\Users\marco\master_project\humanObjectDetection\ModelGeneration\transformer\Results\sliding_left_offset\2024-04-19_13-12\checkpoints\model_last.pth"
+classification_folder_path = Path("/home/mindlab/humanObjectDetection/ModelGeneration/transformer/Results/sliding_left_offset/2024-04-23_17-23")
+classification_path = classification_folder_path / "checkpoints" / "model_last.pth"
+classification_config_path = classification_folder_path / "configuration.json"
+
+with open(str((classification_config_path).absolute()), 'r') as f:
+        config = json.load(f)
 
 model_contact, labels_map_contact = import_lstm_models(
     PATH=str(contact_detection_path.absolute()), num_features_lstm=num_features_lstm)
 
-config = {}
-config['Data_shape'][1] = 14
-config['Data_shape'][2] = 40
-model_classification = model.ConvTran(config=config,num_classes=3) 
-model_classification.load_state_dict(
-    torch.load(str(classification_path.absolute()), map_location='cpu'))
+config['Data_shape'] =  [1, 21, 40]
+model_classification = ConvTran(config=config,num_classes=3) 
+saved_params = torch.load(str(classification_path.absolute()), map_location='cpu')
+model_classification.load_state_dict(saved_params["state_dict"])
 model_classification.eval()
 print("contact classification (human object detection) model is loaded!")
 
@@ -173,13 +178,12 @@ def contact_detection(data):
 
     # data input prep for classification
     features = np.array(data.tau_J_d) - np.array(data.tau_J)  # etau
-    features = np.concatenate([features, e_q])
+    features = np.concatenate([features, e_q,e_dq])     
     features = features.reshape((1, classification_model_input_size))
     window_classification = np.append(window_classification[1:, :], features, axis=0)
-    
-    window_classification = np.swapaxes(window_classification, 1, 2) # swap axes such that #1, #features #winwdowlength
+    window_classification = np.swapaxes(window_classification, 0, 1) # swap axes such that #1, #features #winwdowlength
     features_tensor = torch.tensor(window_classification, dtype=torch.float32).unsqueeze(0).to(device)  
-    window_classification = np.swapaxes(window_classification, 1, 2) # reswap TODO refactor code properly
+    window_classification = np.swapaxes(window_classification, 1, 0) # reswap TODO refactor code properly
 
     with torch.no_grad():
         # mit torch.tensor(X_test, dtype=torch.float32) ausprobieren

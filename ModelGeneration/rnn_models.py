@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 
+
 class RNNModelHyperParameterSet():
     def __init__(self, hidden_size: int = None, num_layers: int = None, epochs: int = None, learning_rate: float = None):
         self.hidden_size = hidden_size
@@ -11,7 +12,7 @@ class RNNModelHyperParameterSet():
 
 
 class RNNModelHyperParameters():
-    def __init__(self, hidden_sizes: list[int], num_layers: list[int], epochs: list[int], learning_rates: list[float], input_size: int, output_size: int):
+    def __init__(self, hidden_sizes: "list[int]", num_layers: "list[int]", epochs: "list[int]", learning_rates: "list[float]", input_size: int, output_size: int):
         self.hidden_sizes = hidden_sizes
         self.num_layers = num_layers
         self.epochs = epochs
@@ -22,7 +23,7 @@ class RNNModelHyperParameters():
 
         self.best_hyperparameters = RNNModelHyperParameterSet()
 
-    def get_hyperparameter_combinations(self) -> list[RNNModelHyperParameterSet]:
+    def get_hyperparameter_combinations(self) -> "list[RNNModelHyperParameterSet]":
         return [RNNModelHyperParameterSet(h, n, e, l) for h in self.hidden_sizes for n in self.num_layers for e in self.epochs for l in self.learning_rates]
 
 
