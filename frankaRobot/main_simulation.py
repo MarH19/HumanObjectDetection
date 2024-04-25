@@ -25,7 +25,7 @@ By Maryam Rezayati
 		source /opt/ros/noetic/setup.bash
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_human_object_detection.py
+		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_simulation.py
 
 
 5. run save data node
@@ -63,14 +63,13 @@ import rospy
 import torch
 from franka_interface_msgs.msg import RobotState
 from frankapy import FrankaArm
-from importModel import import_lstm_models
+from importModel import import_lstm_models, import_lstm_models_old
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from std_msgs.msg import Float64
 from torchvision import transforms
-
-from ModelGeneration.model_generation import choose_model_class
-from ModelGeneration.rnn_models import RNNModel
+import torch.nn as nn
+from rnn_models import LSTMModel
 
 def choose_robot_motion():
     robot_motions_path = repo_root_path / "frankaRobot" / "robotMotionPoints"
@@ -90,8 +89,9 @@ repo_root_path = Path(__file__).parents[1]
 
 ########### Define parameters for contact detection NICO,LARS,MAXI
 labels_contact_binary = {0: "no contact", 1:  "contact"}
-binary_contact_lengt = 40
+binary_contact_window_lenght = 5
 binary_contact_input_size = 21
+
 
 # Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -102,11 +102,10 @@ if device.type == "cuda":
 contact_binary_path = repo_root_path / \
     'AIModels' / 'trainedModels' / 'simulation' / 'real_lstm-binary-prediction.pth'
 
-classification_model_class = choose_model_class()
 robot_motion_path = choose_robot_motion()
 
 ######### Model load for contact detection NICO,LARS,MAXI
-model_contact_binary = classification_model_class(
+model_contact_binary = LSTMModel(
     input_size=binary_contact_input_size, hidden_size=126,
     num_layers=2, output_size=1)
 model_contact_binary.load_state_dict(
@@ -117,39 +116,36 @@ print("Lars und Maxi eues Model hender ääääntli ufem Roboter! Lets goooo!")
 # Move PyTorch models to the selected device
 model_contact_binary = model_contact_binary.to(device)
 
-model_msg = Floats()
+
+
+window_contact_binary= np.zeros(
+    [binary_contact_window_lenght, binary_contact_input_size])
+
+
+
 
 
 def contact_detection(data):
-    global window_classification_contact
+    global window_contact_binary
     start_time = rospy.get_time()
     position = np.array(data.q)
     velocity = np.array(data.dq)
     torque = np.array(data.tau_J)
     features = np.concatenate([position, velocity, torque])
     features = features.reshape((1, binary_contact_input_size)) ####Ist das richtig?
-    window_classification = np.append(
-        window_classification[1:, :], features, axis=0)
-    features_tensor_contact = torch.tensor(window_classification_contact, dtype=torch.float32).unsqueeze(
+    window_contact_binary = np.append(
+        window_contact_binary[1:, :], features, axis=0)
+    features_tensor_contact = torch.tensor(window_contact_binary, dtype=torch.float32).unsqueeze(
         0).to(device)  # gives (1,window_size,feature_number)
 
     with torch.no_grad():
         model_out_contact = model_contact_binary(features_tensor_contact)
         contact_binary_prediction = model_contact_binary.get_predictions(model_out_contact)
         detection_duration = rospy.get_time() - start_time
-        rospy.loginfo(
-            f'detection duration: {detection_duration}, classification prediction: {labels_contact_binary[int(contact_binary_prediction)]}')
+        rospy.loginfo(f'Contact binary prediction: {contact_binary_prediction}')
+    
 
-    start_time = np.array(start_time).tolist()
-    time_sec = int(start_time)
-    time_nsec = start_time - time_sec
-    #Output of the terminal
-    model_msg.data = np.array([time_sec - big_time_digits, time_nsec,
-                              detection_duration, contact_binary_prediction], dtype=np.complex128)
-    model_pub.publish(model_msg)
-    
-   
-    
+
 
 
 def move_robot(fa: FrankaArm, event: Event):
@@ -188,6 +184,4 @@ if __name__ == "__main__":
     # subscribe robot data topic for contact detection module
     rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state", data_class=RobotState,
                      callback=contact_detection)  # , callback_args=update_state)#,queue_size = 1)
-    model_pub = rospy.Publisher(
-        "/model_output", numpy_msg(Floats), queue_size=1)
     move_robot(fa, event)
