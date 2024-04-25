@@ -72,29 +72,6 @@ from torchvision import transforms
 from ModelGeneration.model_generation import choose_model_class
 from ModelGeneration.rnn_models import RNNModel
 
-repo_root_path = Path(__file__).parents[1]
-
-
-##### Noch nicht adapted
-def choose_trained_model(model_class: Type[RNNModel]):
-    trained_models_path = repo_root_path / "ModelGeneration" / "TrainedModels"
-    with open(str((trained_models_path / "RnnModelsParameters.json").absolute()), 'r') as f:
-        model_params_list = json.load(f)
-    model_params_list = [
-        m for m in model_params_list if m["model_name"].startswith(model_class.__name__ + "_")]
-    model_params_list = sorted(
-        model_params_list, key=lambda d: d['model_name'])
-
-    lines = [f'{i} {v["model_name"]}' for i, v in enumerate(model_params_list)]
-    print("Trained model files:")
-    print('\n'.join(lines) + '\n')
-    model_params_index = None
-    while model_params_index not in np.arange(0, len(model_params_list), 1):
-        model_params_index = int(input(
-            "Which trained model parameters should be used? (choose by index): "))
-    return model_params_list[model_params_index]
-
-
 def choose_robot_motion():
     robot_motions_path = repo_root_path / "frankaRobot" / "robotMotionPoints"
     robot_motions = dict([(str(i), p) for i, p in enumerate(robot_motions_path.iterdir())
@@ -108,192 +85,67 @@ def choose_robot_motion():
             "Which robot motion should be used? (choose by index): ")
     return robot_motions[robot_motion_key]
 
-###########Model type na ahpasse!!!
-# choose model type and trained model parameters
-classification_model_class = choose_model_class()
-classification_model_params = choose_trained_model(classification_model_class)
-robot_motion_path = choose_robot_motion()
-print()
 
-# Define parameters for the contact detection / localization models
-num_features_lstm = 4
-window_length = 28
-features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
-dof = 7
-
-# Define parameters for the classification (human object detection) model
-labels_classification = {0: "hard", 1:  "plasticbottle", 2: "soft"}
-window_classification_length = 40
-classification_model_input_size = 14
+repo_root_path = Path(__file__).parents[1]
 
 ########### Define parameters for contact detection NICO,LARS,MAXI
 labels_contact_binary = {0: "no contact", 1:  "contact"}
-window_classification_length_contact = 40
-classification_model_input_size_contact = 21
+binary_contact_lengt = 40
+binary_contact_input_size = 21
 
 # Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if device.type == "cuda":
     torch.cuda.get_device_name()
 
-########### 
-########### 
-########### Diesen Teil noch für uns anpassen
-# load models
-contact_detection_path = repo_root_path / \
-    'AIModels' / 'trainedModels' / 'contactDetection' / \
-    'trainedModel_01_24_2024_11_18_01.pth'
+#Set path to model    
+contact_binary_path = repo_root_path / \
+    'AIModels' / 'trainedModels' / 'simulation' / 'real_lstm-binary-prediction.pth'
 
-model_name = classification_model_params["model_name"]
-classification_path = repo_root_path / "ModelGeneration" / \
-    "TrainedModels" / f"{model_name}.pth"
-    
-    
-contact_binary_path = ...
-
-
-
-######Diesen Part müssen wir noch anpassen Achtung model_contact war schon hier, ist von maryam
-model_contact, labels_map_contact = import_lstm_models(
-    PATH=str(contact_detection_path.absolute()), num_features_lstm=num_features_lstm)
-
-model_classification = classification_model_class(
-    input_size=classification_model_input_size, hidden_size=classification_model_params[
-        "hyperparameters"]["hidden_size"],
-    num_layers=classification_model_params["hyperparameters"]["num_layers"], output_size=3)
-model_classification.load_state_dict(
-    torch.load(str(classification_path.absolute()), map_location='cpu'))
-model_classification.eval()
-print("contact classification (human object detection) model is loaded!")
-
-# Move PyTorch models to the selected device
-model_contact = model_contact.to(device)
-model_classification = model_classification.to(device)
+classification_model_class = choose_model_class()
+robot_motion_path = choose_robot_motion()
 
 ######### Model load for contact detection NICO,LARS,MAXI
-
-model_contact_binary = ... 
+model_contact_binary = classification_model_class(
+    input_size=binary_contact_input_size, hidden_size=126,
+    num_layers=2, output_size=1)
 model_contact_binary.load_state_dict(
     torch.load(str(contact_binary_path.absolute()), map_location='cpu'))
-model_contact.eval()
+model_contact_binary.eval()
 print("Lars und Maxi eues Model hender ääääntli ufem Roboter! Lets goooo!")
 
 # Move PyTorch models to the selected device
 model_contact_binary = model_contact_binary.to(device)
 
-
-
-
-# Define transformation for input data
-transform = transforms.Compose([transforms.ToTensor()])
-window = np.zeros([window_length, features_num])
-window_classification = np.zeros(
-    [window_classification_length, classification_model_input_size])
-########### Define transformation for Contact Detection NICO,LARS,MAXI
-window_classification_contact = np.zeros(
-    [window_classification_length_contact, classification_model_input_size_contact])
-# Create message for publishing model output (will be used in saceDataNode.py)
 model_msg = Floats()
 
 
 def contact_detection(data):
-    global window, publish_output, big_time_digits
-    global window_classification
-    ######This global is for coontact detection Lars, Nico, Maxi
     global window_classification_contact
-    
-    #Gather data from robot for maryam contact and classification
     start_time = rospy.get_time()
-    e_q = np.array(data.q_d) - np.array(data.q)
-    e_dq = np.array(data.dq_d) - np.array(data.dq)
-    tau_J = np.array(data.tau_J)
-    tau_ext = np.array(data.tau_ext_hat_filtered)
-    tau_ext = np.multiply(tau_ext, 0.5)
-
-    new_row = np.hstack((tau_J, tau_ext, e_q, e_dq))
-    new_row = new_row.reshape((1, features_num))
-
-    window = np.append(window[1:, :], new_row, axis=0)
-
-    # change the order for lstm
-    lstmDataWindow = []
-    for j in range(dof):
-        # tau(t), tau_ext(t), e(t), de(t)
-
-        if num_features_lstm == 4:
-            column_index = [j, j + dof, j + dof * 2, j + dof * 3]
-        elif num_features_lstm == 2:
-            column_index = [j + dof * 2, j + dof * 3]
-        elif num_features_lstm == 3:
-            column_index = [j + dof, j + dof * 2, j + dof * 3]
-
-        join_data_matix = window[:, column_index]
-        lstmDataWindow.append(join_data_matix.reshape(
-            (1, num_features_lstm * window_length)))
-
-    lstmDataWindow = np.vstack(lstmDataWindow)
-
-    # data input prep for classification
-    features = np.array(data.tau_J_d) - np.array(data.tau_J)  # etau
-    features = np.array(data.tau_J_d) - np.array(data.tau_J)  # etau
-    features = np.concatenate([features, e_q])
-    features = features.reshape((1, classification_model_input_size))
-    window_classification = np.append(
-        window_classification[1:, :], features, axis=0)
-    features_tensor = torch.tensor(window_classification, dtype=torch.float32).unsqueeze(
-        0).to(device)  # gives (1,window_size,feature_number)
-    
-    ##########Contact Detection by group NICO,LARS,MAXI
     position = np.array(data.q)
     velocity = np.array(data.dq)
     torque = np.array(data.tau_J)
     features = np.concatenate([position, velocity, torque])
-    features = features.reshape((1, classification_model_input_size_contact)) ####Ist das richtig?
+    features = features.reshape((1, binary_contact_input_size)) ####Ist das richtig?
     window_classification = np.append(
         window_classification[1:, :], features, axis=0)
-
     features_tensor_contact = torch.tensor(window_classification_contact, dtype=torch.float32).unsqueeze(
         0).to(device)  # gives (1,window_size,feature_number)
 
-######
-######
-##### Diesen Teil noch für uns anpassen
     with torch.no_grad():
-        # mit torch.tensor(X_test, dtype=torch.float32) ausprobieren
-        data_input = transform(lstmDataWindow).to(device).float()
-        model_out = model_contact(data_input)
-        model_out = model_out.detach()
-        output = torch.argmax(model_out, dim=1)
-
-    contact = output.cpu().numpy()[0]
-    if contact == 1:
-        with torch.no_grad():
-            model_out = model_classification(features_tensor)
-            contact_object_prediction = model_classification.get_predictions(model_out)
-
-        detection_duration = rospy.get_time() - start_time
-        rospy.loginfo(
-            f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
-
-    else:
-        detection_duration = rospy.get_time() - start_time
-        contact_object_prediction = -1
-        # rospy.loginfo('detection duration: %f, there is no contact',detection_duration)
-        # publish_output.publish([detection_duration, contact, contact, contact])
-    start_time = np.array(start_time).tolist()
-    time_sec = int(start_time)
-    time_nsec = start_time - time_sec
-     ########## Evaluation of the contact detection by group NICO,LARS,MAXI
-    with torch.no_grad():
-        model_out_contact = model_contact(features_tensor_contact)
-        contact_binary_prediction = model_contact.get_predictions(model_out_contact)
+        model_out_contact = model_contact_binary(features_tensor_contact)
+        contact_binary_prediction = model_contact_binary.get_predictions(model_out_contact)
         detection_duration = rospy.get_time() - start_time
         rospy.loginfo(
             f'detection duration: {detection_duration}, classification prediction: {labels_contact_binary[int(contact_binary_prediction)]}')
 
+    start_time = np.array(start_time).tolist()
+    time_sec = int(start_time)
+    time_nsec = start_time - time_sec
     #Output of the terminal
     model_msg.data = np.array([time_sec - big_time_digits, time_nsec,
-                              detection_duration, contact, contact_binary_prediction], dtype=np.complex128)
+                              detection_duration, contact_binary_prediction], dtype=np.complex128)
     model_pub.publish(model_msg)
     
    
