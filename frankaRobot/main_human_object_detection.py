@@ -112,7 +112,7 @@ features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
 dof = 7
 
 # Define parameters for the classification (human object detection) model
-labels_classification = {0: "hard", 1:  "plasticbottle", 2: "soft"}
+labels_classification = {0: "hard", 1: "plasticbottle", 2: "soft"}
 window_classification_length = 40
 classification_model_input_size = 14
 
@@ -209,7 +209,8 @@ def contact_detection(data):
     if contact == 1:
         with torch.no_grad():
             model_out = model_classification(features_tensor)
-            contact_object_prediction = model_classification.get_predictions(model_out)
+            contact_object_prediction = model_classification.get_predictions(
+                model_out)
 
         detection_duration = rospy.get_time() - start_time
         rospy.loginfo(

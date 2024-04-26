@@ -26,10 +26,11 @@ from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, GRUModelW
 # on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjectDetectionEnv)
 # ===========================================================================================================================================================
 
-model_classes: "list[Type[RNNModel]]" = [LSTMModel, LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
+model_classes: "list[Type[RNNModel]]" = [LSTMModel,
+                                         LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
 
 
-hidden_sizes = [32, 64,128]#, 256]
+hidden_sizes = [32, 64, 128]  # , 256]
 num_layers = [1, 2, 3, 4]
 epochs = np.arange(50, 201, 50)
 learning_rates = [0.001, 0.01]
@@ -47,7 +48,7 @@ def get_model_params_path(model_prefix, file_suffix):
 
 
 class RNNModelTrainer():
-    def __init__(self, device, model_class: Type[RNNModel], hyperparameters: RNNModelHyperParameters, X_train, y_train, X_test, y_test,optimizer="Adam"):
+    def __init__(self, device, model_class: Type[RNNModel], hyperparameters: RNNModelHyperParameters, X_train, y_train, X_test, y_test, optimizer="Adam"):
         self.device = device
         self.model_class = model_class
         self.hyperparameters = hyperparameters
@@ -105,10 +106,11 @@ class RNNModelTrainer():
                 # Define loss function and optimizer
                 criterion = model.get_criterion()
                 if self.optimizer == "AdamW":
-                    optimizer = optim.AdamW(model.parameters(),lr=hp.learning_rate,weight_decay=0.01)
+                    optimizer = optim.AdamW(
+                        model.parameters(), lr=hp.learning_rate, weight_decay=0.01)
                 else:
-                    optimizer = optim.Adam(model.parameters(), lr=hp.learning_rate)
-                
+                    optimizer = optim.Adam(
+                        model.parameters(), lr=hp.learning_rate)
 
                 # Train the model
                 for _ in range(hp.epochs):
@@ -159,9 +161,11 @@ class RNNModelTrainer():
         # Define loss function and optimizer
         criterion = model.get_criterion()
         if self.optimizer == "AdamW":
-            optimizer = optim.AdamW(model.parameters(),lr=self.hyperparameters.best_hyperparameters.learning_rate,weight_decay=0.01)
+            optimizer = optim.AdamW(model.parameters(
+            ), lr=self.hyperparameters.best_hyperparameters.learning_rate, weight_decay=0.01)
         else:
-            optimizer = optim.Adam(model.parameters(), lr=self.hyperparameters.best_hyperparameters.learning_rate)
+            optimizer = optim.Adam(
+                model.parameters(), lr=self.hyperparameters.best_hyperparameters.learning_rate)
 
         loss_values = []
         # Train the model
@@ -244,7 +248,7 @@ def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], f
     plt.close()
 
 
-def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet,optimizer):
+def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet, optimizer):
     model_params_list = []
     file_path = get_trained_models_path() / "RnnModelsParameters.json"
     if os.path.exists(str(file_path.absolute())):
@@ -262,7 +266,7 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet,
             "epochs": int(hyperparameters.epochs),
             "learning_rate": float(hyperparameters.learning_rate)
         },
-        'optimizer':optimizer
+        'optimizer': optimizer
     })
 
     with open(str(file_path.absolute()), 'w') as f:
@@ -302,6 +306,7 @@ def choose_normalization_mode():
             "Should the data be normalized? (y / n): ").lower()
     return True if normalization_choice == "y" else False
 
+
 def choose_optimizer():
     optimizer_choice = ""
     while optimizer_choice not in ["0", "1"]:
@@ -337,8 +342,8 @@ if __name__ == '__main__':
     if normalize:
         for i in range(X_train.shape[2]):
             scaler = StandardScaler()
-            X_train[:, :, i] = scaler.fit_transform(X_train[:, :, i]) 
-            X_test[:, :, i] = scaler.transform(X_test[:, :, i]) 
+            X_train[:, :, i] = scaler.fit_transform(X_train[:, :, i])
+            X_test[:, :, i] = scaler.transform(X_test[:, :, i])
         files_suffix += "_norm"
 
     rnn_model_trainer = RNNModelTrainer(
@@ -347,7 +352,7 @@ if __name__ == '__main__':
         hyperparameters=RNNModelHyperParameters(
             hidden_sizes=hidden_sizes, num_layers=num_layers, epochs=epochs,
             learning_rates=learning_rates, input_size=input_size, output_size=output_size),
-        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,optimizer=optimizer)
+        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, optimizer=optimizer)
 
     # k-fold cross validation for hyperparameters
     rnn_model_trainer.kFold_cross_validate(k=5)
@@ -359,7 +364,7 @@ if __name__ == '__main__':
             {rnn_model_trainer.hyperparameters.best_hyperparameters.hidden_size} hidden size""")
 
     save_hyperparameters(
-        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters,rnn_model_trainer.optimizer)
+        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters, rnn_model_trainer.optimizer)
 
     # train and evaluate the model
     rnn_model_trainer.train_model(file_suffix=files_suffix)
