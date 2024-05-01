@@ -39,24 +39,38 @@ By Maryam Rezayati
 # to chage publish rate of frankastate go to : 
 sudo nano /home/mindlab/franka/franka-interface/catkin_ws/src/franka_ros_interface/launch/franka_ros_interface.launch
 """
-
-## import required libraries 
 import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
 import numpy as np
 import pandas as pd
 import rospy
 from frankapy import FrankaArm
 from threading import Event
+from pathlib import Path
 
-# Set the main path
-main_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
 
-# Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_c4.csv'
+repo_root_path = Path(__file__).parents[1]
 
-def move_robot(fa:FrankaArm, event: Event):
+def choose_robot_motion():
+    robot_motions_path = repo_root_path / "frankaRobot" / "robotMotionPoints"
+    robot_motions = dict([(str(i), p) for i, p in enumerate(robot_motions_path.iterdir())
+                          if p.is_file and p.suffix == ".csv"])
+    lines = [f'{key} {value.name}' for key, value in robot_motions.items()]
+    print("Robot Motions:")
+    print('\n'.join(lines) + '\n')
+    robot_motion_key = None
+    while robot_motion_key not in robot_motions:
+        robot_motion_key = input(
+            "Which robot motion should be used? (choose by index): ")
+    return robot_motions[robot_motion_key]
 
-	joints = pd.read_csv(joints_data_path)
+
+def move_robot(fa:FrankaArm, event: Event, motion_csv):
+
+	joints = pd.read_csv(motion_csv)
 
 	# preprocessing
 	joints = joints.iloc[:, 1:8]
@@ -68,7 +82,7 @@ def move_robot(fa:FrankaArm, event: Event):
 	while True:	
 		try:	
 			for i in range(joints.shape[0]):
-				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=2.25)
+				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=1.5)
 				#time.sleep(0.01)
 			rospy.loginfo("move")
 
@@ -83,11 +97,16 @@ def move_robot(fa:FrankaArm, event: Event):
 
 if __name__ == "__main__":
 	global publish_output, big_time_digits
+
+	motion_csv = choose_robot_motion()
+
 	event = Event()
+	
 	# create robot controller instance
 	fa = FrankaArm()
 	scale = 1000000
 	big_time_digits = int(rospy.get_time()/scale)*scale
+	
 	# subscribe robot data topic for contact detection module
-	move_robot(fa, event)
+	move_robot(fa, event, motion_csv)
 	

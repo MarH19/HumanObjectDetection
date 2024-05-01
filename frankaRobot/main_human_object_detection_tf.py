@@ -113,7 +113,7 @@ contact_detection_path = repo_root_path / \
 
 
 #classification_path = "C:\Users\marco\master_project\humanObjectDetection\ModelGeneration\transformer\Results\sliding_left_offset\2024-04-19_13-12\checkpoints\model_last.pth"
-classification_folder_path = Path("/home/mindlab/humanObjectDetection/ModelGeneration/transformer/Results/sliding_left_offset/2024-04-23_17-23")
+classification_folder_path = Path("/home/mindlab/humanObjectDetection/ModelGeneration/transformer/Results/sliding_left_offset/2024-04-19_13-12")
 classification_path = classification_folder_path / "checkpoints" / "model_last.pth"
 classification_config_path = classification_folder_path / "configuration.json"
 
