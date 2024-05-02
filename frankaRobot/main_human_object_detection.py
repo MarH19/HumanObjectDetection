@@ -60,6 +60,7 @@ from rospy_tutorials.msg import Floats
 from std_msgs.msg import Float64
 from torchvision import transforms
 
+from frankaRobot.util import choose_robot_motion
 from ModelGeneration.model_generation import choose_model_class
 from ModelGeneration.rnn_models import RNNModel
 
@@ -83,20 +84,6 @@ def choose_trained_model(model_class: Type[RNNModel]):
         model_params_index = int(input(
             "Which trained model parameters should be used? (choose by index): "))
     return model_params_list[model_params_index]
-
-
-def choose_robot_motion():
-    robot_motions_path = repo_root_path / "frankaRobot" / "robotMotionPoints"
-    robot_motions = dict([(str(i), p) for i, p in enumerate(robot_motions_path.iterdir())
-                          if p.is_file and p.suffix == ".csv"])
-    lines = [f'{key} {value.name}' for key, value in robot_motions.items()]
-    print("Robot Motions:")
-    print('\n'.join(lines) + '\n')
-    robot_motion_key = None
-    while robot_motion_key not in robot_motions:
-        robot_motion_key = input(
-            "Which robot motion should be used? (choose by index): ")
-    return robot_motions[robot_motion_key]
 
 
 # choose model type and trained model parameters

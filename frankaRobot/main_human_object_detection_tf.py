@@ -46,8 +46,6 @@ sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 import json
 from pathlib import Path
 from threading import Event
-from typing import Type
-from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -58,33 +56,16 @@ from frankapy import FrankaArm
 from importModel import import_lstm_models
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
-from std_msgs.msg import Float64
 from torchvision import transforms
-from sklearn.preprocessing import LabelEncoder
 
+from frankaRobot.util import choose_robot_motion
 from ModelGeneration.transformer.model import ConvTran
-
 
 repo_root_path = Path(__file__).parents[1]
 
-
-def choose_robot_motion():
-    robot_motions_path = repo_root_path / "frankaRobot" / "robotMotionPoints"
-    robot_motions = dict([(str(i), p) for i, p in enumerate(robot_motions_path.iterdir())
-                          if p.is_file and p.suffix == ".csv"])
-    lines = [f'{key} {value.name}' for key, value in robot_motions.items()]
-    print("Robot Motions:")
-    print('\n'.join(lines) + '\n')
-    robot_motion_key = None
-    while robot_motion_key not in robot_motions:
-        robot_motion_key = input(
-            "Which robot motion should be used? (choose by index): ")
-    return robot_motions[robot_motion_key]
-
-
 # choose model type and trained model parameters
-#classification_model_class = choose_model_class()
-#classification_model_params = choose_trained_model(classification_model_class)
+# classification_model_class = choose_model_class()
+# classification_model_params = choose_trained_model(classification_model_class)
 
 robot_motion_path = choose_robot_motion()
 print()
@@ -99,7 +80,7 @@ dof = 7
 labels_classification = {0: "hard", 1: "plasticbottle", 2: "soft"}
 
 window_classification_length = 40
-classification_model_input_size = 21 # transformer uses all features
+classification_model_input_size = 21  # transformer uses all features
 
 # Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -112,20 +93,22 @@ contact_detection_path = repo_root_path / \
     'trainedModel_01_24_2024_11_18_01.pth'
 
 
-#classification_path = "C:\Users\marco\master_project\humanObjectDetection\ModelGeneration\transformer\Results\sliding_left_offset\2024-04-19_13-12\checkpoints\model_last.pth"
-classification_folder_path = Path("/home/mindlab/humanObjectDetection/ModelGeneration/transformer/Results/sliding_left_offset/2024-04-19_13-12")
+# classification_path = "C:\Users\marco\master_project\humanObjectDetection\ModelGeneration\transformer\Results\sliding_left_offset\2024-04-19_13-12\checkpoints\model_last.pth"
+classification_folder_path = Path(
+    "/home/mindlab/humanObjectDetection/ModelGeneration/transformer/Results/sliding_left_offset/2024-04-19_13-12")
 classification_path = classification_folder_path / "checkpoints" / "model_last.pth"
 classification_config_path = classification_folder_path / "configuration.json"
 
 with open(str((classification_config_path).absolute()), 'r') as f:
-        config = json.load(f)
+    config = json.load(f)
 
 model_contact, labels_map_contact = import_lstm_models(
     PATH=str(contact_detection_path.absolute()), num_features_lstm=num_features_lstm)
 
-config['Data_shape'] =  [1, 21, 40]
-model_classification = ConvTran(config=config,num_classes=3) 
-saved_params = torch.load(str(classification_path.absolute()), map_location='cpu')
+config['Data_shape'] = [1, 21, 40]
+model_classification = ConvTran(config=config, num_classes=3)
+saved_params = torch.load(
+    str(classification_path.absolute()), map_location='cpu')
 model_classification.load_state_dict(saved_params["state_dict"])
 model_classification.eval()
 print("contact classification (human object detection) model is loaded!")
@@ -178,12 +161,16 @@ def contact_detection(data):
 
     # data input prep for classification
     features = np.array(data.tau_J_d) - np.array(data.tau_J)  # etau
-    features = np.concatenate([features, e_q,e_dq])     
+    features = np.concatenate([features, e_q, e_dq])
     features = features.reshape((1, classification_model_input_size))
-    window_classification = np.append(window_classification[1:, :], features, axis=0)
-    window_classification = np.swapaxes(window_classification, 0, 1) # swap axes such that #1, #features #winwdowlength
-    features_tensor = torch.tensor(window_classification, dtype=torch.float32).unsqueeze(0).to(device)  
-    window_classification = np.swapaxes(window_classification, 1, 0) # reswap TODO refactor code properly
+    window_classification = np.append(
+        window_classification[1:, :], features, axis=0)
+    # swap axes such that #1, #features #winwdowlength
+    window_classification = np.swapaxes(window_classification, 0, 1)
+    features_tensor = torch.tensor(
+        window_classification, dtype=torch.float32).unsqueeze(0).to(device)
+    # reswap TODO refactor code properly
+    window_classification = np.swapaxes(window_classification, 1, 0)
 
     with torch.no_grad():
         # mit torch.tensor(X_test, dtype=torch.float32) ausprobieren
@@ -196,9 +183,9 @@ def contact_detection(data):
     if contact == 1:
         with torch.no_grad():
             model_out = model_classification(features_tensor)
-            probs = torch.nn.functional.softmax(model_out,dim=1) 
-            contact_object_prediction = torch.argmax(probs, dim=1).cpu().numpy()
-           
+            probs = torch.nn.functional.softmax(model_out, dim=1)
+            contact_object_prediction = torch.argmax(
+                probs, dim=1).cpu().numpy()
 
         detection_duration = rospy.get_time() - start_time
         rospy.loginfo(

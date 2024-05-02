@@ -33,32 +33,41 @@ How to Run:
         source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
         /home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/saveDataNode.py
 """
+import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
+import csv
+import json
+from datetime import datetime
+from pathlib import Path
 
 # Import required libraries
 import numpy as np
 import rospy
-from std_msgs.msg import Float64
-from rospy_tutorials.msg import Floats
-from rospy.numpy_msg import numpy_msg
 from franka_interface_msgs.msg import RobotState
-import csv
-import os
-import json
-from pathlib import Path
-from datetime import datetime
+from rospy.numpy_msg import numpy_msg
+from rospy_tutorials.msg import Floats
+from std_msgs.msg import Float64
 
+from frankaRobot.util import choose_robot_motion
 
-contact_type_shorts = {"s": "soft", "h": "hard", "p": "plasticbottle", "t": "pvc_tube"}
+contact_type_shorts = {"s": "soft", "h": "hard",
+                       "p": "plasticbottle", "t": "pvc_tube"}
 
 # Set base path for saving data
 ROOT_PATH = Path('/home/mindlab/humanObjectDetectionDataset/rawData')
-#ROOT_PATH = Path("C:\\Users\\juhe9\\repos\\MasterProject\\humanObjectDetectionDataset\\rawData")
+# ROOT_PATH = Path("C:\\Users\\juhe9\\repos\\MasterProject\\humanObjectDetectionDataset\\rawData")
 
 # Prompt the user to enter a tag name and contact type
 FOLDER_TAG = input('Enter tag name: ')
 
-contact_type = input("Enter contact type (soft: s / hard: h / plasticbottle: p / pvc_tube: t): ")
+contact_type = input(
+    "Enter contact type (soft: s / hard: h / plasticbottle: p / pvc_tube: t): ")
 contact_type = contact_type_shorts[contact_type.lower()]
+
+used_robot_motion = choose_robot_motion()
 
 
 class LogData:
@@ -89,8 +98,12 @@ class LogData:
 
         meta_data = {
             "date": datetime.now().strftime('%Y-%m-%d'),
-            "contact_type": contact_type, 
-            "start_from_time": -1 }
+            "contact_type": contact_type,
+            "start_from_time": -1,
+            "motion_filename": used_robot_motion.name,
+            "reference_duration_multiplier_lower": None,
+            "reference_duration_multiplier_upper": None,
+        }
         with open(meta_path, 'w') as f:
             json.dump(meta_data, f, indent=4)
 
