@@ -60,14 +60,14 @@ contact_type_shorts = {"s": "soft", "h": "hard",
 ROOT_PATH = Path('/home/mindlab/humanObjectDetectionDataset/rawData')
 # ROOT_PATH = Path("C:\\Users\\juhe9\\repos\\MasterProject\\humanObjectDetectionDataset\\rawData")
 
-# Prompt the user to enter a tag name and contact type
+# Prompt the user to enter a tag name, the current robot motion and the contact type
 FOLDER_TAG = input('Enter tag name: ')
+
+used_robot_motion = choose_robot_motion()
 
 contact_type = input(
     "Enter contact type (soft: s / hard: h / plasticbottle: p / pvc_tube: t): ")
 contact_type = contact_type_shorts[contact_type.lower()]
-
-used_robot_motion = choose_robot_motion()
 
 
 class LogData:
