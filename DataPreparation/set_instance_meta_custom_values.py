@@ -36,8 +36,10 @@ with open(meta_path) as f:
     meta_data = json.load(f)
 
 current_start_from_time = meta_data["start_from_time"]
-current_reference_duration_multiplier_lower = meta_data["reference_duration_multiplier_lower"]
-current_reference_duration_multiplier_upper = meta_data["reference_duration_multiplier_upper"]
+current_reference_duration_multiplier_lower = meta_data[
+    "reference_duration_multiplier_lower"] if "reference_duration_multiplier_lower" in meta_data else None
+current_reference_duration_multiplier_upper = meta_data[
+    "reference_duration_multiplier_upper"] if "reference_duration_multiplier_upper" in meta_data else None
 
 start_from_time = None
 while not isfloat(start_from_time):
