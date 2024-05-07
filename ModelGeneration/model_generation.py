@@ -30,10 +30,10 @@ model_classes: "list[Type[RNNModel]]" = [LSTMModel,
                                          LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
 
 
-hidden_sizes = [32] #,64, 128, 256]
-num_layers = [1]#, 2, 3, 4]
-epochs = np.arange(50, 201, 50)
-learning_rates = [0.001]#, 0.01,0.0001,0.1]
+hidden_sizes = [16]#,32,64,128]#, 256]
+num_layers = [1, 2, 3]#, 4]
+epochs = np.arange(100, 201, 50)
+learning_rates = [0.001, 0.01]#,0.0001,0.1]
 input_size = 14
 output_size = 3
 
@@ -343,7 +343,7 @@ if __name__ == '__main__':
     normalize = choose_normalization_mode()
     optimizer = choose_optimizer()
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
 
     X = np.load(str(X_file.absolute()))
