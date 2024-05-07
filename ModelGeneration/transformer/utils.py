@@ -67,7 +67,7 @@ def create_dirs(dirs):
 
      
 class myDataLoader(torch.utils.data.Dataset):
-  def __init__(self, X_path, y_path, test_size=0.2, val_size=0.1, random_state=42, normalize=False):
+  def __init__(self, X_path, y_path, output,test_size=0.2, val_size=0.1, random_state=42, normalize=False):
     self.X = np.load(X_path)
     self.y = np.load(y_path)
     label_encoder = LabelEncoder()
@@ -76,14 +76,22 @@ class myDataLoader(torch.utils.data.Dataset):
 
     # Split data into train/test sets
     self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=test_size, random_state=random_state)
-    
+    mean = []
+    std = []
     if normalize:
         for i in range(self.X_train.shape[1]):
             scaler = StandardScaler()
             self.X_train[:, i, :] = scaler.fit_transform(self.X_train[:, i,:]) 
-            self.X_test[:, i, :] = scaler.transform(self.X_test[:, i, :]) 
-     
+            self.X_test[:, i, :] = scaler.transform(self.X_test[:, i, :])
+            mean.append((scaler.mean_).tolist()) 
+            std.append((scaler.scale_).tolist())
+        data  = {'normalization_mean':mean,
+                 'normalization_std': std}
+        with open(os.path.join(output, 'configuration.json'), 'w') as f:
+            json.dump(data,f)
        
+           
+
     # Further split train data into train/val sets
     if val_size > 0:
       self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(self.X_train, self.y_train, test_size=val_size, random_state=random_state)

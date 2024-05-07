@@ -85,6 +85,10 @@ def choose_trained_model(model_class: Type[RNNModel]):
             "Which trained model parameters should be used? (choose by index): "))
     return model_params_list[model_params_index]
 
+def normalizer(params, data):
+    for idx,i in enumerate(params["normalization_mean"]):
+        data[:,idx] = (data[:,idx] - i) / params["normalization_std"]
+    return data
 
 # choose model type and trained model parameters
 classification_model_class = choose_model_class()
@@ -95,11 +99,11 @@ print()
 # Define parameters for the contact detection / localization models
 num_features_lstm = 4
 window_length = 28
-features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
+features_num = 28  # 4 variables and 7 joints -> 4*7 = 28
 dof = 7
 
 # Define parameters for the classification (human object detection) model
-labels_classification = {0: "hard", 1: "plasticbottle", 2: "soft"}
+labels_classification = {0: "hard", 1: "PVC", 2: "soft"}
 window_classification_length = 40
 classification_model_input_size = 14
 
@@ -145,6 +149,8 @@ model_msg = Floats()
 def contact_detection(data):
     global window, publish_output, big_time_digits
     global window_classification
+    global counter
+    counter = 0
     start_time = rospy.get_time()
     e_q = np.array(data.q_d) - np.array(data.q)
     e_dq = np.array(data.dq_d) - np.array(data.dq)
@@ -181,7 +187,8 @@ def contact_detection(data):
     features = features.reshape((1, classification_model_input_size))
     window_classification = np.append(
         window_classification[1:, :], features, axis=0)
-
+    if "normalization_mean" in classification_model_params and "normalization_std" in classification_model_params:
+        window_classification = normalizer(classification_model_params,window_classification)
     features_tensor = torch.tensor(window_classification, dtype=torch.float32).unsqueeze(
         0).to(device)  # gives (1,window_size,feature_number)
 
@@ -194,14 +201,16 @@ def contact_detection(data):
 
     contact = output.cpu().numpy()[0]
     if contact == 1:
-        with torch.no_grad():
-            model_out = model_classification(features_tensor)
-            contact_object_prediction = model_classification.get_predictions(
-                model_out)
+        counter += 1
+        if counter % 3 == 0: # only do a classification every 3rd time a contact is detected
+            with torch.no_grad():
+                model_out = model_classification(features_tensor)
+                contact_object_prediction = model_classification.get_predictions(
+                    model_out)
 
-        detection_duration = rospy.get_time() - start_time
-        rospy.loginfo(
-            f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
+            detection_duration = rospy.get_time() - start_time
+            rospy.loginfo(
+                f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
 
     else:
         detection_duration = rospy.get_time() - start_time

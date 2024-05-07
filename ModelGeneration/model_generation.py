@@ -30,10 +30,10 @@ model_classes: "list[Type[RNNModel]]" = [LSTMModel,
                                          LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
 
 
-hidden_sizes = [32, 64, 128]  # , 256]
-num_layers = [1, 2, 3, 4]
+hidden_sizes = [32] #,64, 128, 256]
+num_layers = [1]#, 2, 3, 4]
 epochs = np.arange(50, 201, 50)
-learning_rates = [0.001, 0.01]
+learning_rates = [0.001]#, 0.01,0.0001,0.1]
 input_size = 14
 output_size = 3
 
@@ -248,16 +248,17 @@ def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], f
     plt.close()
 
 
-def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet, optimizer):
+def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet, optimizer,mean,std):
     model_params_list = []
     file_path = get_trained_models_path() / "RnnModelsParameters.json"
+    print(file_path)
     if os.path.exists(str(file_path.absolute())):
         with open(str(file_path.absolute()), 'r') as f:
             model_params_list = json.load(f)
 
     model_params_list = [
         i for i in model_params_list if i["model_name"] != model_name]
-    model_params_list.append({
+    new_params = {
         'model_name': model_name,
         'modification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'hyperparameters': {
@@ -266,8 +267,14 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet,
             "epochs": int(hyperparameters.epochs),
             "learning_rate": float(hyperparameters.learning_rate)
         },
-        'optimizer': optimizer
-    })
+        'optimizer': optimizer,    
+    }
+
+    if (len(mean) != 0) and (len(std)!=0):
+        new_params['normalization_mean'] = mean
+        new_params['normalization_std'] = std
+
+    model_params_list.append(new_params)
 
     with open(str(file_path.absolute()), 'w') as f:
         json.dump(model_params_list, f, indent=4)
@@ -287,16 +294,29 @@ def choose_model_class() -> Type[RNNModel]:
 def choose_dataset():
     processed_data_path = Path(os.environ.get(
         "DATASET_REPO_ROOT_PATH")) / "processedData"
-    datasets = dict([(str(i), p) for i, p in enumerate(processed_data_path.iterdir())
-                     if p.is_file and p.name.startswith("x_") and p.suffix == ".npy"])
+    
+    sub_repo = dict([(str(i),p) for i,p in enumerate(processed_data_path.iterdir())])
+    print("sub repo:")
+    lines = [f'{key} {value.name}' for key, value in sub_repo.items()]
+    print('\n'.join(lines) + '\n')
+    subrepo_key = None
+    while subrepo_key not in sub_repo:
+        subrepo_key = input(
+            "Which sub repo should be used? (choose by index): ")
+
+    full_path = processed_data_path / sub_repo[subrepo_key]
+
+    datasets = dict([(str(i), p) for i, p in enumerate(full_path.iterdir())
+                     if p.is_file and p.name.startswith("x_") and p.suffix == ".npy" and "test" not in p.name])
     lines = [f'{key} {value.name}' for key, value in datasets.items()]
+    
     print("Datasets:")
     print('\n'.join(lines) + '\n')
     dataset_key = None
     while dataset_key not in datasets:
         dataset_key = input(
             "Which dataset should be used? (choose by index): ")
-    return datasets[dataset_key]
+    return sub_repo[subrepo_key],datasets[dataset_key]
 
 
 def choose_normalization_mode():
@@ -319,7 +339,7 @@ if __name__ == '__main__':
     load_dotenv(find_dotenv())
 
     model_class = choose_model_class()
-    X_file = choose_dataset()
+    sub_repo, X_file = choose_dataset()
     normalize = choose_normalization_mode()
     optimizer = choose_optimizer()
 
@@ -334,17 +354,32 @@ if __name__ == '__main__':
     # (as of 02.04.2024) all datasets contain the following features in that order (torque- / position- / velocity errors):
     # ['etau_J0', 'etau_J1', 'etau_J2', 'etau_J3', 'etau_J4', 'etau_J5', 'etau_J6', 'e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'de0', 'de1', 'de2', 'de3', 'de4', 'de5', 'de6']
     X = X[:, :, 0:14]
+    encoder = LabelEncoder()
+    if sub_repo != 'test_train_split':
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, encoder.fit_transform(y), test_size=0.1)
+        files_suffix = X_file.name.replace("x_", "").replace(".npy", "")
+    else:
+        X_train = X
+        y_train = encoder.fit_transform(y)
+        X_test = np.load(str((X_file.parent / X_file.name.replace("train", "test")).absolute()))
+        X_test = X_test[:,:,0:14]
+        y_test = np.load(str((X_file.parent / X_file.name.replace("x_train", "y_test")).absolute()))
+        y_test = encoder.transform(y_test)
+        files_suffix = X_file.name.replace("x_train", "split").replace(".npy", "")
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, LabelEncoder().fit_transform(y), test_size=0.1)
-
-    files_suffix = X_file.name.replace("x_", "").replace(".npy", "")
+    
+    mean = []
+    std = []
     if normalize:
         for i in range(X_train.shape[2]):
             scaler = StandardScaler()
             X_train[:, :, i] = scaler.fit_transform(X_train[:, :, i])
             X_test[:, :, i] = scaler.transform(X_test[:, :, i])
+            mean.append((scaler.mean_).tolist())
+            std.append((scaler.scale_).tolist())
         files_suffix += "_norm"
+    
 
     rnn_model_trainer = RNNModelTrainer(
         device=device,
@@ -364,7 +399,7 @@ if __name__ == '__main__':
             {rnn_model_trainer.hyperparameters.best_hyperparameters.hidden_size} hidden size""")
 
     save_hyperparameters(
-        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters, rnn_model_trainer.optimizer)
+        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters, rnn_model_trainer.optimizer,mean,std)
 
     # train and evaluate the model
     rnn_model_trainer.train_model(file_suffix=files_suffix)

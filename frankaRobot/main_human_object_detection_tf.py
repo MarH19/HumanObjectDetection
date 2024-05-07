@@ -60,6 +60,10 @@ from torchvision import transforms
 
 from frankaRobot.util import choose_robot_motion
 from ModelGeneration.transformer.model import ConvTran
+def normalizer(params, data):
+    for idx,i in enumerate(params["normalization_mean"]):
+        data[:,idx] = (data[:,idx] - i) / params["normalization_std"]
+    return data
 
 repo_root_path = Path(__file__).parents[1]
 
@@ -77,7 +81,7 @@ features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
 dof = 7
 
 # Define parameters for the classification (human object detection) model
-labels_classification = {0: "hard", 1: "plasticbottle", 2: "soft"}
+labels_classification = {0: "hard", 1: "PVC", 2: "soft"}
 
 window_classification_length = 40
 classification_model_input_size = 21  # transformer uses all features
@@ -129,6 +133,8 @@ model_msg = Floats()
 def contact_detection(data):
     global window, publish_output, big_time_digits
     global window_classification
+    global counter
+    counter = 0
     start_time = rospy.get_time()
     e_q = np.array(data.q_d) - np.array(data.q)
     e_dq = np.array(data.dq_d) - np.array(data.dq)
@@ -165,6 +171,8 @@ def contact_detection(data):
     features = features.reshape((1, classification_model_input_size))
     window_classification = np.append(
         window_classification[1:, :], features, axis=0)
+    if "normalization_mean" in config and "normalization_std" in config:
+        window_classification = normalizer(config,window_classification)
     # swap axes such that #1, #features #winwdowlength
     window_classification = np.swapaxes(window_classification, 0, 1)
     features_tensor = torch.tensor(
@@ -181,15 +189,17 @@ def contact_detection(data):
 
     contact = output.cpu().numpy()[0]
     if contact == 1:
-        with torch.no_grad():
-            model_out = model_classification(features_tensor)
-            probs = torch.nn.functional.softmax(model_out, dim=1)
-            contact_object_prediction = torch.argmax(
-                probs, dim=1).cpu().numpy()
+        counter += 1
+        if counter % 3 == 0: # only do a classification every 3rd time a contact is detected
+            with torch.no_grad():
+                model_out = model_classification(features_tensor)
+                probs = torch.nn.functional.softmax(model_out, dim=1)
+                contact_object_prediction = torch.argmax(
+                    probs, dim=1).cpu().numpy()
 
-        detection_duration = rospy.get_time() - start_time
-        rospy.loginfo(
-            f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
+            detection_duration = rospy.get_time() - start_time
+            rospy.loginfo(
+                f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
 
     else:
         detection_duration = rospy.get_time() - start_time

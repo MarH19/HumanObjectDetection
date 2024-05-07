@@ -17,8 +17,8 @@ parser = argparse.ArgumentParser()
 # -------------------------------------------- Input and Output --------------------------------------------------------
 parser.add_argument('--output_dir', default=r'C:\Users\marco\master_project\humanObjectDetection\ModelGeneration\transformer\Results',
                     help='Root output directory. Must exist. Time-stamped directories will be created inside.')
-parser.add_argument('--xfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\x_sliding_left_offset.npy", type=str, help='specify which x file you want to load')
-parser.add_argument('--yfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\y_sliding_left_offset.npy", type=str, help='specify which y file you want to load')
+parser.add_argument('--xfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\complete\x_sliding_left_offset.npy", type=str, help='specify which x file you want to load')
+parser.add_argument('--yfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\complete\y_sliding_left_offset.npy", type=str, help='specify which y file you want to load')
 parser.add_argument('--Norm', type=bool, default=False, help='Data Normalization')
 parser.add_argument('--val_ratio', type=float, default=0.1, help="Proportion of the train-set to be used as validation")
 # ----------------------------------------------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     device = Initialization(config)
     # ------------------------------------ Load Data ---------------------------------------------------------------
     logger.info("Loading Data ...")
-    dataset = myDataLoader(config['xfile'],config['yfile'],test_size=0.2, val_size=0.1,normalize=config['Norm'])
+    dataset = myDataLoader(config['xfile'],config['yfile'],output=config['output_dir'],test_size=0.2, val_size=0.1,normalize=config['Norm'])
     train_loader = DataLoader(dataset=dataset, batch_size=config['batch_size'], shuffle=True, pin_memory=True)
     val_loader = DataLoader(dataset=dataset, batch_size=config['batch_size'], shuffle=False, pin_memory=True)
     test_loader = DataLoader(dataset=dataset, batch_size=config['batch_size'], shuffle=False, pin_memory=True)
