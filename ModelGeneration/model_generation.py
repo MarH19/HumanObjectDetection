@@ -30,11 +30,11 @@ model_classes: "list[Type[RNNModel]]" = [LSTMModel,
                                          LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
 
 
-hidden_sizes = [16]#,32,64,128]#, 256]
+hidden_sizes = [16,32,64,128]#, 256]
 num_layers = [1, 2, 3]#, 4]
 epochs = np.arange(100, 201, 50)
-learning_rates = [0.001, 0.01]#,0.0001,0.1]
-input_size = 14
+learning_rates = [0.001, 0.01,0.0001,0.1]
+input_size = 21
 output_size = 3
 
 
@@ -213,7 +213,7 @@ class RNNModelTrainer():
 
         # Define class labels based on output type
         class_labels = ['Negative', 'Positive'] if self.hyperparameters.output_size == 1 else [
-            'hard', 'plasticbottle', 'soft']
+            'hard', 'pvc_tube', 'soft']
 
         # Display confusion matrix with labels
         try:
@@ -295,7 +295,7 @@ def choose_dataset():
     processed_data_path = Path(os.environ.get(
         "DATASET_REPO_ROOT_PATH")) / "processedData"
     
-    sub_repo = dict([(str(i),p) for i,p in enumerate(processed_data_path.iterdir())])
+    sub_repo = dict([(str(i),p) for i,p in enumerate(processed_data_path.iterdir()) if p.is_dir()])
     print("sub repo:")
     lines = [f'{key} {value.name}' for key, value in sub_repo.items()]
     print('\n'.join(lines) + '\n')
@@ -351,9 +351,11 @@ if __name__ == '__main__':
         str((X_file.parent / X_file.name.replace("x_", "y_")).absolute()))
 
     # filter X features to fit model
-    # (as of 02.04.2024) all datasets contain the following features in that order (torque- / position- / velocity errors):
-    # ['etau_J0', 'etau_J1', 'etau_J2', 'etau_J3', 'etau_J4', 'etau_J5', 'etau_J6', 'e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'de0', 'de1', 'de2', 'de3', 'de4', 'de5', 'de6']
-    X = X[:, :, 0:14]
+    torque_indices = np.arange(0,7, 1)
+    position_error_indices = np.arange(28, 35, 1)
+    velocity_error_indices = np.arange(35,42, 1)
+    feature_indices = np.concatenate((torque_indices, position_error_indices, velocity_error_indices))
+    X = X[:, :, feature_indices]
     encoder = LabelEncoder()
     if sub_repo != 'test_train_split':
         X_train, X_test, y_train, y_test = train_test_split(
@@ -363,7 +365,7 @@ if __name__ == '__main__':
         X_train = X
         y_train = encoder.fit_transform(y)
         X_test = np.load(str((X_file.parent / X_file.name.replace("train", "test")).absolute()))
-        X_test = X_test[:,:,0:14]
+        X_test = X_test[:,:,feature_indices]
         y_test = np.load(str((X_file.parent / X_file.name.replace("x_train", "y_test")).absolute()))
         y_test = encoder.transform(y_test)
         files_suffix = X_file.name.replace("x_train", "split").replace(".npy", "")
