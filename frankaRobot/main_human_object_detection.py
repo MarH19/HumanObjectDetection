@@ -87,7 +87,7 @@ def choose_trained_model(model_class: Type[RNNModel]):
 
 def normalizer(params, data):
     for idx,i in enumerate(params["normalization_mean"]):
-        data[:,idx] = (data[:,idx] - i) / params["normalization_std"]
+        data[:,idx] = (data[:,idx] - i) / params["normalization_std"][idx]
     return data
 
 # choose model type and trained model parameters
@@ -103,9 +103,9 @@ features_num = 28  # 4 variables and 7 joints -> 4*7 = 28
 dof = 7
 
 # Define parameters for the classification (human object detection) model
-labels_classification = {0: "hard", 1: "PVC", 2: "soft"}
+labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
 window_classification_length = 40
-classification_model_input_size = 14
+classification_model_input_size = 21
 
 # Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -146,11 +146,12 @@ window_classification = np.zeros(
 model_msg = Floats()
 
 
+counter = 0
 def contact_detection(data):
     global window, publish_output, big_time_digits
     global window_classification
     global counter
-    counter = 0
+    
     start_time = rospy.get_time()
     e_q = np.array(data.q_d) - np.array(data.q)
     e_dq = np.array(data.dq_d) - np.array(data.dq)
@@ -182,8 +183,7 @@ def contact_detection(data):
     lstmDataWindow = np.vstack(lstmDataWindow)
 
     # data input prep for classification
-    features = np.array(data.tau_J_d) - np.array(data.tau_J)  # etau
-    features = np.concatenate([features, e_q])
+    features = np.concatenate([tau_J, e_q, e_dq])
     features = features.reshape((1, classification_model_input_size))
     window_classification = np.append(
         window_classification[1:, :], features, axis=0)
@@ -200,6 +200,8 @@ def contact_detection(data):
         output = torch.argmax(model_out, dim=1)
 
     contact = output.cpu().numpy()[0]
+    detection_duration = 0
+    contact_object_prediction = -1
     if contact == 1:
         counter += 1
         if counter % 3 == 0: # only do a classification every 3rd time a contact is detected
@@ -212,11 +214,6 @@ def contact_detection(data):
             rospy.loginfo(
                 f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
 
-    else:
-        detection_duration = rospy.get_time() - start_time
-        contact_object_prediction = -1
-        # rospy.loginfo('detection duration: %f, there is no contact',detection_duration)
-        # publish_output.publish([detection_duration, contact, contact, contact])
     start_time = np.array(start_time).tolist()
     time_sec = int(start_time)
     time_nsec = start_time - time_sec

@@ -80,7 +80,7 @@ features_num = 28
 dof = 7
 
 # Define paths for joint motion data
-joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_a2.csv'
+joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_b11.csv'
 #joints_data_path = main_path + 'frankaRobot/robotMotionPoints/robotMotionJointData_c4.csv'
 
 # load model
@@ -145,20 +145,22 @@ def contact_detection(data):
 
 	contact = output.cpu().numpy()[0]
 	if contact == 1:
-		with torch.no_grad():
-			model_out = model_collision(data_input)
-			model_out = model_out.detach()
-			output = torch.argmax(model_out, dim=1)
-			collision = output.cpu().numpy()[0]
-
-			model_out = model_localization(data_input)
-			model_out = model_out.detach()
-			output = torch.argmax(model_out, dim=1)
-			localization = output.cpu().numpy()[0]
+		#with torch.no_grad():
+			#model_out = model_collision(data_input)
+			#model_out = model_out.detach()
+			#output = torch.argmax(model_out, dim=1)
+			#collision = output.cpu().numpy()[0]
+#
+			#model_out = model_localization(data_input)
+			#model_out = model_out.detach()
+			#output = torch.argmax(model_out, dim=1)
+			#localization = output.cpu().numpy()[0]
 		detection_duration  = rospy.get_time()-start_time
-		rospy.loginfo('detection duration: %f, There is a: %s on %s',detection_duration, labels_map_collision[collision], labels_map_localization[localization])
+		rospy.loginfo('detection duration: %f, There is a: %s on %s',detection_duration, 0, 0)
 		#rospy.loginfo(np.array([detection_duration, contact, collision, localization, window]))
 		#publish_output.publish([detection_duration, contact, collision, localization])
+		collision = contact
+		localization = contact
 		
 
 	else:

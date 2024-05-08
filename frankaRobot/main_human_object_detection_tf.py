@@ -62,7 +62,7 @@ from frankaRobot.util import choose_robot_motion
 from ModelGeneration.transformer.model import ConvTran
 def normalizer(params, data):
     for idx,i in enumerate(params["normalization_mean"]):
-        data[:,idx] = (data[:,idx] - i) / params["normalization_std"]
+        data[:,idx] = (data[:,idx] - i) / params["normalization_std"][idx]
     return data
 
 repo_root_path = Path(__file__).parents[1]
@@ -81,7 +81,7 @@ features_num = 28  # 4 variables are and 7 joints -> 4*7 = 28
 dof = 7
 
 # Define parameters for the classification (human object detection) model
-labels_classification = {0: "hard", 1: "PVC", 2: "soft"}
+labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
 
 window_classification_length = 40
 classification_model_input_size = 21  # transformer uses all features
@@ -99,7 +99,7 @@ contact_detection_path = repo_root_path / \
 
 # classification_path = "C:\Users\marco\master_project\humanObjectDetection\ModelGeneration\transformer\Results\sliding_left_offset\2024-04-19_13-12\checkpoints\model_last.pth"
 classification_folder_path = Path(
-    "/home/mindlab/humanObjectDetection/ModelGeneration/transformer/Results/sliding_left_offset/2024-04-19_13-12")
+    "/home/mindlab/humanObjectDetection/ModelGeneration/transformer/Results/sliding_left_offset/2024-05-08_10-38")
 classification_path = classification_folder_path / "checkpoints" / "model_last.pth"
 classification_config_path = classification_folder_path / "configuration.json"
 
@@ -129,12 +129,12 @@ window_classification = np.zeros(
 # Create message for publishing model output (will be used in saceDataNode.py)
 model_msg = Floats()
 
-
+counter = 0
 def contact_detection(data):
     global window, publish_output, big_time_digits
     global window_classification
     global counter
-    counter = 0
+    
     start_time = rospy.get_time()
     e_q = np.array(data.q_d) - np.array(data.q)
     e_dq = np.array(data.dq_d) - np.array(data.dq)
@@ -166,14 +166,13 @@ def contact_detection(data):
     lstmDataWindow = np.vstack(lstmDataWindow)
 
     # data input prep for classification
-    features = np.array(data.tau_J_d) - np.array(data.tau_J)  # etau
-    features = np.concatenate([features, e_q, e_dq])
+    features = np.concatenate([tau_J, e_q, e_dq])
     features = features.reshape((1, classification_model_input_size))
     window_classification = np.append(
         window_classification[1:, :], features, axis=0)
     if "normalization_mean" in config and "normalization_std" in config:
         window_classification = normalizer(config,window_classification)
-    # swap axes such that #1, #features #winwdowlength
+    #swap axes such that #1, #features #winwdowlength
     window_classification = np.swapaxes(window_classification, 0, 1)
     features_tensor = torch.tensor(
         window_classification, dtype=torch.float32).unsqueeze(0).to(device)
@@ -188,6 +187,8 @@ def contact_detection(data):
         output = torch.argmax(model_out, dim=1)
 
     contact = output.cpu().numpy()[0]
+    detection_duration = 0
+    contact_object_prediction = -1
     if contact == 1:
         counter += 1
         if counter % 3 == 0: # only do a classification every 3rd time a contact is detected
@@ -196,16 +197,10 @@ def contact_detection(data):
                 probs = torch.nn.functional.softmax(model_out, dim=1)
                 contact_object_prediction = torch.argmax(
                     probs, dim=1).cpu().numpy()
-
             detection_duration = rospy.get_time() - start_time
             rospy.loginfo(
                 f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
-
-    else:
-        detection_duration = rospy.get_time() - start_time
-        contact_object_prediction = -1
-        # rospy.loginfo('detection duration: %f, there is no contact',detection_duration)
-        # publish_output.publish([detection_duration, contact, contact, contact])
+        
     start_time = np.array(start_time).tolist()
     time_sec = int(start_time)
     time_nsec = start_time - time_sec
@@ -229,7 +224,7 @@ def move_robot(fa: FrankaArm, event: Event):
         try:
             for i in range(joints.shape[0]):
                 fa.goto_joints(
-                    np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.75)
+                    np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.5)
                 # time.sleep(0.01)
 
         except Exception as e:
