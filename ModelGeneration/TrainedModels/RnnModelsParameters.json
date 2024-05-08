@@ -6537,5 +6537,16 @@
             "learning_rate": 0.001
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModelWithLayerNorm_sliding_left_offset",
+        "modification_time": "2024-05-08 15:21:59",
+        "hyperparameters": {
+            "hidden_size": 128,
+            "num_layers": 1,
+            "epochs": 200,
+            "learning_rate": 0.01
+        },
+        "optimizer": "AdamW"
     }
 ]
