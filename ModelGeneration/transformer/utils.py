@@ -70,6 +70,11 @@ class myDataLoader(torch.utils.data.Dataset):
   def __init__(self, X_path, y_path, output,test_size=0.2, val_size=0.1, random_state=42, normalize=False):
     self.X = np.load(X_path)
     self.y = np.load(y_path)
+    torque_indices = np.arange(0,7,1)
+    position_error_indices = np.arange(28,35,1)
+    velocity_error_indices = np.arange(35,42,1)
+    selection = np.concatenate((torque_indices, position_error_indices, velocity_error_indices))
+    self.X = self.X[:, :, selection]
     label_encoder = LabelEncoder()
     self.y = label_encoder.fit_transform(self.y)
     self.X = np.swapaxes(self.X, 1, 2) # swap axes such that #samples, #features #winwdowlength
@@ -87,10 +92,12 @@ class myDataLoader(torch.utils.data.Dataset):
             std.append((scaler.scale_).tolist())
         data  = {'normalization_mean':mean,
                  'normalization_std': std}
+        with open(os.path.join(output, 'configuration.json'), 'r') as f:
+            config = json.load(f)
+        config.update(data)
         with open(os.path.join(output, 'configuration.json'), 'w') as f:
-            json.dump(data,f)
-       
-           
+            json.dump(config, f)
+             
 
     # Further split train data into train/val sets
     if val_size > 0:
