@@ -1,8 +1,9 @@
 import numpy as np
 from torch import nn
-from ModelGeneration.transformer.AbsolutePositionalEncoding import tAPE, AbsolutePositionalEncoding, LearnablePositionalEncoding
-from ModelGeneration.transformer.Attention import Attention, Attention_Rel_Scl, Attention_Rel_Vec
-
+#from ModelGeneration.transformer.AbsolutePositionalEncoding import tAPE, AbsolutePositionalEncoding, LearnablePositionalEncoding
+#from ModelGeneration.transformer.Attention import Attention, Attention_Rel_Scl, Attention_Rel_Vec
+from AbsolutePositionalEncoding import tAPE, AbsolutePositionalEncoding, LearnablePositionalEncoding
+from Attention import Attention, Attention_Rel_Scl, Attention_Rel_Vec
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
