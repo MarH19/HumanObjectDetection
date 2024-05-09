@@ -6,7 +6,7 @@ import os
 import json
 from datetime import datetime
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder,StandardScaler
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from copy import deepcopy
 
 
@@ -81,17 +81,17 @@ class myDataLoader(torch.utils.data.Dataset):
 
     # Split data into train/test sets
     self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=test_size, random_state=random_state)
-    mean = []
-    std = []
+    max = []
+    min = []
     if normalize:
         for i in range(self.X_train.shape[1]):
-            scaler = StandardScaler()
+            scaler = MinMaxScaler()
             self.X_train[:, i, :] = scaler.fit_transform(self.X_train[:, i,:]) 
             self.X_test[:, i, :] = scaler.transform(self.X_test[:, i, :])
-            mean.append((scaler.mean_).tolist()) 
-            std.append((scaler.scale_).tolist())
-        data  = {'normalization_mean':mean,
-                 'normalization_std': std}
+            max.append((scaler.data_max_).tolist())
+            min.append((scaler.data_min_).tolist())
+        data  = {'normalization_max':max,
+                 'normalization_min': min}
         with open(os.path.join(output, 'configuration.json'), 'r') as f:
             config = json.load(f)
         config.update(data)

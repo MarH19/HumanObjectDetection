@@ -19,7 +19,7 @@ parser.add_argument('--output_dir', default=r'C:\Users\marco\master_project\huma
                     help='Root output directory. Must exist. Time-stamped directories will be created inside.')
 parser.add_argument('--xfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\complete\x_sliding_left_offset.npy", type=str, help='specify which x file you want to load')
 parser.add_argument('--yfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\complete\y_sliding_left_offset.npy", type=str, help='specify which y file you want to load')
-parser.add_argument('--Norm', type=bool, default=False, help='Data Normalization')
+parser.add_argument('--Norm', type=bool, default=True, help='Data Normalization')
 parser.add_argument('--val_ratio', type=float, default=0.1, help="Proportion of the train-set to be used as validation")
 # ----------------------------------------------------------------------------------------------------------------------
 # ------------------------------------- Model Parameter and Hyperparameter ---------------------------------------------

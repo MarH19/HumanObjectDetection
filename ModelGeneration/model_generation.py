@@ -17,7 +17,7 @@ import torch.optim as optim
 from dotenv import find_dotenv, load_dotenv
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
 from ModelGeneration.earlystopping import EarlyStopper
 from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, GRUModelWithLayerNorm, LSTMModelWithLayerNorm,
                                         RNNModelHyperParameters,
@@ -250,7 +250,7 @@ def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], f
     plt.close()
 
 
-def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet, optimizer, mean, std):
+def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet, optimizer, max, min):
     model_params_list = []
     file_path = get_trained_models_path() / "RnnModelsParameters.json"
     print(file_path)
@@ -272,9 +272,9 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet,
         'optimizer': optimizer,
     }
 
-    if (len(mean) != 0) and (len(std) != 0):
-        new_params['normalization_mean'] = mean
-        new_params['normalization_std'] = std
+    if (len(max) != 0) and (len(min) != 0):
+        new_params['normalization_max'] = max
+        new_params['normalization_min'] = min
 
     model_params_list.append(new_params)
 
@@ -370,15 +370,15 @@ if __name__ == '__main__':
         files_suffix = X_file.name.replace(
             "x_train", "split").replace(".npy", "")
 
-    mean = []
-    std = []
+    max = []
+    min = []
     if normalize:
         for i in range(X_train.shape[2]):
-            scaler = StandardScaler()
+            scaler = MinMaxScaler()
             X_train[:, :, i] = scaler.fit_transform(X_train[:, :, i])
             X_test[:, :, i] = scaler.transform(X_test[:, :, i])
-            mean.append((scaler.mean_).tolist())
-            std.append((scaler.scale_).tolist())
+            max.append((scaler.data_max_).tolist())
+            min.append((scaler.data_min_).tolist())
         files_suffix += "_norm"
 
     rnn_model_trainer = RNNModelTrainer(
@@ -399,7 +399,7 @@ if __name__ == '__main__':
             {rnn_model_trainer.hyperparameters.best_hyperparameters.hidden_size} hidden size""")
 
     save_hyperparameters(
-        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters, rnn_model_trainer.optimizer, mean, std)
+        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters, rnn_model_trainer.optimizer, max, min)
 
     # train and evaluate the model
     rnn_model_trainer.train_model(file_suffix=files_suffix)
