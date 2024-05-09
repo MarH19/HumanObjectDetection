@@ -59,14 +59,22 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from torchvision import transforms
 
-from ModelGeneration.model_generation import choose_model_class
-from ModelGeneration.rnn_models import RNNModel
 from _util.util import choose_robot_motion, user_input_choose_from_list
+from ModelGeneration.model_generation import choose_rnn_model_class
+from ModelGeneration.rnn_models import RNNModel
+from ModelGeneration.transformer.model import ConvTran
 
 repo_root_path = Path(__file__).parents[1]
+classification_model_input_size = 21
+window_classification_length = 40
+labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
 
 
-def choose_trained_model(model_class: Type[RNNModel]):
+def choose_model_type():
+    return user_input_choose_from_list(["RNN", "Transformer"], "Model Types")
+
+
+def choose_trained_rnn_model(model_class: Type[RNNModel]):
     trained_models_path = repo_root_path / "ModelGeneration" / "TrainedModels"
     with open(str((trained_models_path / "RnnModelsParameters.json").absolute()), 'r') as f:
         model_params = json.load(f)
@@ -74,145 +82,184 @@ def choose_trained_model(model_class: Type[RNNModel]):
         m for m in model_params if m["model_name"].startswith(model_class.__name__ + "_")]
     model_params = sorted(
         model_params, key=lambda d: d['model_name'])
-    return user_input_choose_from_list(model_params, "Trained model files", "Which trained model parameters should be used?", lambda v: v["model_name"])
+    return user_input_choose_from_list(model_params, "Trained model files", lambda v: v["model_name"])
 
 
-def normalize(params, data):
-    for idx, i in enumerate(params["normalization_mean"]):
-        data[:, idx] = (data[:, idx] - i) / params["normalization_std"][idx]
-    return data
+def choose_trained_transformer_model():
+    transformer_results_path = repo_root_path / \
+        "ModelGeneration" / "transformer" / "Results"
+    trained_model_paths = []
+    for sp in transformer_results_path.iterdir():
+        if sp.is_dir() and sp.name != "old_models":
+            trained_model_paths += [p for _,
+                                    p in enumerate(sp.iterdir()) if p.is_dir()]
+    return user_input_choose_from_list(trained_model_paths, "Trained Transformer models", lambda p: f"{p.parent.name}/{p.name}")
 
 
-# choose model type and trained model parameters
-classification_model_class = choose_model_class()
-classification_model_params = choose_trained_model(classification_model_class)
+def load_rnn_classification_model(model_class: type[RNNModel], params):
+    model_name = rnn_model_params["model_name"]
+    classification_path = repo_root_path / "ModelGeneration" / \
+        "TrainedModels" / f"{model_name}.pth"
+    model_classification = rnn_model_class(
+        input_size=classification_model_input_size, hidden_size=rnn_model_params[
+            "hyperparameters"]["hidden_size"],
+        num_layers=rnn_model_params["hyperparameters"]["num_layers"], output_size=len(labels_classification))
+    model_classification.load_state_dict(torch.load(
+        str(classification_path.absolute()), map_location='cpu'))
+    return model_classification
+
+
+def load_transformer_classification_model(model_path: Path):
+    checkpoint_path = model_path / "checkpoints" / "model_last.pth"
+    config_path = model_path / "configuration.json"
+    with open(str((config_path).absolute()), 'r') as f:
+        config = json.load(f)
+    config['Data_shape'] = [
+        1, classification_model_input_size, window_classification_length]
+    model_classification = ConvTran(
+        config=config, num_classes=len(labels_classification))
+    saved_params = torch.load(
+        str(checkpoint_path.absolute()), map_location='cpu')
+    model_classification.load_state_dict(saved_params["state_dict"])
+    return model_classification, config
+
+
+def normalize_window(window):
+    params = rnn_model_params if model_type == "RNN" else transformer_config
+    if "normalization_mean" in params and "normalization_std" in params:
+        for idx, i in enumerate(params["normalization_mean"]):
+            window[:, idx] = (window[:, idx] - i) / \
+                params["normalization_std"][idx]
+    return window
+
+
+# choose trained model
+model_type = choose_model_type()
+model_classification, rnn_model_params, transformer_config = None, None, None
+if model_type == "RNN":
+    rnn_model_class = choose_rnn_model_class()
+    rnn_model_params = choose_trained_rnn_model(rnn_model_class)
+    model_classification = load_rnn_classification_model(
+        rnn_model_class, rnn_model_params)
+elif model_type == "Transformer":
+    transformer_model_path = choose_trained_transformer_model()
+    model_classification, transformer_config = load_transformer_classification_model(
+        transformer_model_path)
+
 robot_motion_path = choose_robot_motion()
 print()
 
 # Define parameters for the contact detection / localization models
-num_features_lstm = 4
-window_length = 28
-features_num = 28  # 4 variables and 7 joints -> 4*7 = 28
-dof = 7
-
-# Define parameters for the classification (human object detection) model
-labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
-window_classification_length = 40
-classification_model_input_size = 21
+contact_detection_num_features_lstm = 4
+contact_detection_window_length = 28
+contact_detection_nof_features = 28
+contact_detection_dof = 7
 
 # Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if device.type == "cuda":
-    torch.cuda.get_device_name()
 
-# load models
+# load contact detection model
 contact_detection_path = repo_root_path / \
     'AIModels' / 'trainedModels' / 'contactDetection' / \
     'trainedModel_01_24_2024_11_18_01.pth'
-
-model_name = classification_model_params["model_name"]
-classification_path = repo_root_path / "ModelGeneration" / \
-    "TrainedModels" / f"{model_name}.pth"
-
 model_contact, labels_map_contact = import_lstm_models(
-    PATH=str(contact_detection_path.absolute()), num_features_lstm=num_features_lstm)
-
-model_classification = classification_model_class(
-    input_size=classification_model_input_size, hidden_size=classification_model_params[
-        "hyperparameters"]["hidden_size"],
-    num_layers=classification_model_params["hyperparameters"]["num_layers"], output_size=3)
-model_classification.load_state_dict(
-    torch.load(str(classification_path.absolute()), map_location='cpu'))
-model_classification.eval()
-print("contact classification (human object detection) model is loaded!")
+    PATH=str(contact_detection_path.absolute()), num_features_lstm=contact_detection_num_features_lstm)
 
 # Move PyTorch models to the selected device
 model_contact = model_contact.to(device)
 model_classification = model_classification.to(device)
+model_classification.eval()
 
-# Define transformation for input data
-transform = transforms.Compose([transforms.ToTensor()])
-window = np.zeros([window_length, features_num])
-window_classification = np.zeros(
+# Define transformation for contact detection model input data
+contact_detection_transform = transforms.Compose([transforms.ToTensor()])
+
+# Initialize remaining variables
+contact_detection_window = np.zeros(
+    [contact_detection_window_length, contact_detection_nof_features])
+classification_window = np.zeros(
     [window_classification_length, classification_model_input_size])
-# Create message for publishing model output (will be used in saceDataNode.py)
-model_msg = Floats()
+model_output_msg = Floats()
+classification_counter = 0
 
 
-counter = 0
-def contact_detection(data):
-    global window, publish_output, big_time_digits
-    global window_classification
-    global counter
-    
+def contact_predictions(data):
+    global contact_detection_window, publish_output, big_time_digits
+    global classification_window, classification_counter
+
     start_time = rospy.get_time()
+
     e_q = np.array(data.q_d) - np.array(data.q)
     e_dq = np.array(data.dq_d) - np.array(data.dq)
     tau_J = np.array(data.tau_J)
-    tau_ext = np.array(data.tau_ext_hat_filtered)
-    tau_ext = np.multiply(tau_ext, 0.5)
+    tau_ext = np.multiply(np.array(data.tau_ext_hat_filtered), 0.5)
 
-    new_row = np.hstack((tau_J, tau_ext, e_q, e_dq))
-    new_row = new_row.reshape((1, features_num))
-
-    window = np.append(window[1:, :], new_row, axis=0)
-
-    # change the order for lstm
+    # Data for contact detection
+    contact_detection_row = np.hstack((tau_J, tau_ext, e_q, e_dq))
+    contact_detection_row = contact_detection_row.reshape(
+        (1, contact_detection_nof_features))
+    contact_detection_window = np.append(
+        contact_detection_window[1:, :], contact_detection_row, axis=0)
     lstmDataWindow = []
-    for j in range(dof):
-        # tau(t), tau_ext(t), e(t), de(t)
-
-        if num_features_lstm == 4:
-            column_index = [j, j + dof, j + dof * 2, j + dof * 3]
-        elif num_features_lstm == 2:
-            column_index = [j + dof * 2, j + dof * 3]
-        elif num_features_lstm == 3:
-            column_index = [j + dof, j + dof * 2, j + dof * 3]
-
-        join_data_matix = window[:, column_index]
-        lstmDataWindow.append(join_data_matix.reshape(
-            (1, num_features_lstm * window_length)))
-
+    for j in range(contact_detection_dof):
+        column_index = [j, j + contact_detection_dof, j +
+                        contact_detection_dof * 2, j + contact_detection_dof * 3]
+        join_data_matrix = contact_detection_window[:, column_index]
+        lstmDataWindow.append(join_data_matrix.reshape(
+            (1, contact_detection_num_features_lstm * contact_detection_window_length)))
     lstmDataWindow = np.vstack(lstmDataWindow)
 
-    # data input prep for classification
-    features = np.concatenate([tau_J, e_q, e_dq])
-    features = features.reshape((1, classification_model_input_size))
-    window_classification = np.append(
-        window_classification[1:, :], features, axis=0)
-    if "normalization_mean" in classification_model_params and "normalization_std" in classification_model_params:
-        window_classification = normalize(classification_model_params,window_classification)
-    features_tensor = torch.tensor(window_classification, dtype=torch.float32).unsqueeze(
-        0).to(device)  # gives (1,window_size,feature_number)
+    # Data for classification (human/object detection)
+    classification_row = np.concatenate([tau_J, e_q, e_dq])
+    classification_row = classification_row.reshape(
+        (1, classification_model_input_size))
+    classification_window = np.append(
+        classification_window[1:, :], classification_row, axis=0)
 
+    # Run contact detection model
     with torch.no_grad():
-        # mit torch.tensor(X_test, dtype=torch.float32) ausprobieren
-        data_input = transform(lstmDataWindow).to(device).float()
+        data_input = contact_detection_transform(
+            lstmDataWindow).to(device).float()
         model_out = model_contact(data_input)
         model_out = model_out.detach()
         output = torch.argmax(model_out, dim=1)
 
+    # Run classification model
     contact = output.cpu().numpy()[0]
-    detection_duration = 0
     contact_object_prediction = -1
     if contact == 1:
-        counter += 1
-        if counter % 3 == 0: # only do a classification every 3rd time a contact is detected
+        # only do a classification every 3rd time a contact is detected (0, 1, 2)
+        if classification_counter == 2:
             with torch.no_grad():
-                model_out = model_classification(features_tensor)
-                contact_object_prediction = model_classification.get_predictions(
-                    model_out)
+                # normalize data if normalization was done during model training
+                classification_window = normalize_window(classification_window)
+                if model_type == "RNN":
+                    classification_tensor = torch.tensor(
+                        classification_window, dtype=torch.float32).unsqueeze(0).to(device)
+                    model_out = model_classification(classification_tensor)
+                    contact_object_prediction = model_classification.get_predictions(
+                        model_out)
+                elif model_type == "Transformer":
+                    classification_tensor = torch.tensor(
+                        np.swapaxes(classification_window, 0, 1), dtype=torch.float32).unsqueeze(0).to(device)
+                    model_out = model_classification(classification_tensor)
+                    contact_object_prediction = torch.argmax(
+                        torch.nn.functional.softmax(model_out, dim=1), dim=1).cpu().numpy()
+        # increment / reset classification counter
+        classification_counter = (classification_counter + 1) % 3
+    else:
+        # reset classification counter if no contact -> classification model runs only
+        classification_counter = 0
 
-            detection_duration = rospy.get_time() - start_time
-            rospy.loginfo(
-                f'detection duration: {detection_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
+    all_models_prediction_duration = rospy.get_time() - start_time
+    rospy.loginfo(
+        f'all modelsprediction duration: {all_models_prediction_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
 
     start_time = np.array(start_time).tolist()
     time_sec = int(start_time)
     time_nsec = start_time - time_sec
-    model_msg.data = np.array([time_sec - big_time_digits, time_nsec,
-                              detection_duration, contact, contact_object_prediction], dtype=np.complex128)
-    model_pub.publish(model_msg)
+    model_output_msg.data = np.array([time_sec - big_time_digits, time_nsec,
+                                      all_models_prediction_duration, contact, contact_object_prediction], dtype=np.complex128)
+    model_pub.publish(model_output_msg)
 
 
 def move_robot(fa: FrankaArm, event: Event):
@@ -249,8 +296,8 @@ if __name__ == "__main__":
     scale = 1000000
     big_time_digits = int(rospy.get_time() / scale) * scale
     # subscribe robot data topic for contact detection module
-    rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state", data_class=RobotState,
-                     callback=contact_detection)  # , callback_args=update_state)#,queue_size = 1)
+    rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state",
+                     data_class=RobotState, callback=contact_predictions)
     model_pub = rospy.Publisher(
         "/model_output", numpy_msg(Floats), queue_size=1)
     move_robot(fa, event)

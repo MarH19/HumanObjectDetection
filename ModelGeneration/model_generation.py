@@ -282,8 +282,8 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet,
         json.dump(model_params_list, f, indent=4)
 
 
-def choose_model_class() -> Type[RNNModel]:
-    return user_input_choose_from_list(model_classes, "RNN Model Classes", "Which model class should be used?", lambda v: v.__name__)
+def choose_rnn_model_class() -> Type[RNNModel]:
+    return user_input_choose_from_list(model_classes, "RNN Model Classes", lambda v: v.__name__)
 
 
 def choose_dataset():
@@ -334,7 +334,7 @@ def choose_optimizer():
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
 
-    model_class = choose_model_class()
+    model_class = choose_rnn_model_class()
     sub_repo, X_file = choose_dataset()
     normalize = choose_normalization_mode()
     optimizer = choose_optimizer()
