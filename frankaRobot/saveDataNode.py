@@ -51,7 +51,7 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from std_msgs.msg import Float64
 
-from frankaRobot.util import choose_robot_motion
+from _util.util import choose_robot_motion
 
 contact_type_shorts = {"s": "soft", "h": "hard",
                        "p": "plasticbottle", "t": "pvc_tube"}

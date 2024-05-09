@@ -58,7 +58,6 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from torchvision import transforms
 
-from frankaRobot.util import choose_robot_motion
 from ModelGeneration.transformer.model import ConvTran
 def normalizer(params, data):
     for idx,i in enumerate(params["normalization_mean"]):

@@ -44,69 +44,52 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
+from pathlib import Path
+from threading import Event
+
 import numpy as np
 import pandas as pd
 import rospy
 from frankapy import FrankaArm
-from threading import Event
-from pathlib import Path
 
+from _util.util import choose_robot_motion
 
 repo_root_path = Path(__file__).parents[1]
 
-def choose_robot_motion():
-    robot_motions_path = repo_root_path / "frankaRobot" / "robotMotionPoints"
-    robot_motions = dict([(str(i), p) for i, p in enumerate(robot_motions_path.iterdir())
-                          if p.is_file and p.suffix == ".csv"])
-    lines = [f'{key} {value.name}' for key, value in robot_motions.items()]
-    print("Robot Motions:")
-    print('\n'.join(lines) + '\n')
-    robot_motion_key = None
-    while robot_motion_key not in robot_motions:
-        robot_motion_key = input(
-            "Which robot motion should be used? (choose by index): ")
-    return robot_motions[robot_motion_key]
 
+def move_robot(fa: FrankaArm, event: Event, motion_csv):
+    joints = pd.read_csv(motion_csv)
 
-def move_robot(fa:FrankaArm, event: Event, motion_csv):
+    # preprocessing
+    joints = joints.iloc[:, 1:8]
+    joints.iloc[:, 6] -= np.deg2rad(45)
+    print(joints.head(5), '\n\n')
+    fa.goto_joints(np.array(joints.iloc[0]), ignore_virtual_walls=True)
+    fa.goto_gripper(0.02)
 
-	joints = pd.read_csv(motion_csv)
+    while True:
+        try:
+            for i in range(joints.shape[0]):
+                fa.goto_joints(
+                    np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.5)
+                # time.sleep(0.01)
+            rospy.loginfo("move")
+        except Exception as e:
+            print(e)
+            event.set()
+            break
 
-	# preprocessing
-	joints = joints.iloc[:, 1:8]
-	joints.iloc[:,6] -= np.deg2rad(45) 
-	print(joints.head(5), '\n\n')
-	fa.goto_joints(np.array(joints.iloc[0]),ignore_virtual_walls=True)
-	fa.goto_gripper(0.02)
-	
-	while True:	
-		try:	
-			for i in range(joints.shape[0]):
-				fa.goto_joints(np.array(joints.iloc[i]),ignore_virtual_walls=True,duration=1.5)
-				#time.sleep(0.01)
-			rospy.loginfo("move")
-
-		except Exception as e:
-			print(e)
-			event.set()
-			break
-	
-	print('fininshed .... !')
-
+    print('fininshed .... !')
 
 
 if __name__ == "__main__":
-	global publish_output, big_time_digits
+    global publish_output, big_time_digits
 
-	motion_csv = choose_robot_motion()
-
-	event = Event()
-	
-	# create robot controller instance
-	fa = FrankaArm()
-	scale = 1000000
-	big_time_digits = int(rospy.get_time()/scale)*scale
-	
-	# subscribe robot data topic for contact detection module
-	move_robot(fa, event, motion_csv)
-	
+    motion_csv = choose_robot_motion()
+    event = Event()
+    # create robot controller instance
+    fa = FrankaArm()
+    scale = 1000000
+    big_time_digits = int(rospy.get_time() / scale) * scale
+    # subscribe robot data topic for contact detection module
+    move_robot(fa, event, motion_csv)

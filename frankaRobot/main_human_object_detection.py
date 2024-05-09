@@ -57,12 +57,11 @@ from frankapy import FrankaArm
 from importModel import import_lstm_models
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
-from std_msgs.msg import Float64
 from torchvision import transforms
 
-from frankaRobot.util import choose_robot_motion
 from ModelGeneration.model_generation import choose_model_class
 from ModelGeneration.rnn_models import RNNModel
+from _util.util import choose_robot_motion, user_input_choose_from_list
 
 repo_root_path = Path(__file__).parents[1]
 
@@ -70,25 +69,19 @@ repo_root_path = Path(__file__).parents[1]
 def choose_trained_model(model_class: Type[RNNModel]):
     trained_models_path = repo_root_path / "ModelGeneration" / "TrainedModels"
     with open(str((trained_models_path / "RnnModelsParameters.json").absolute()), 'r') as f:
-        model_params_list = json.load(f)
-    model_params_list = [
-        m for m in model_params_list if m["model_name"].startswith(model_class.__name__ + "_")]
-    model_params_list = sorted(
-        model_params_list, key=lambda d: d['model_name'])
+        model_params = json.load(f)
+    model_params = [
+        m for m in model_params if m["model_name"].startswith(model_class.__name__ + "_")]
+    model_params = sorted(
+        model_params, key=lambda d: d['model_name'])
+    return user_input_choose_from_list(model_params, "Trained model files", "Which trained model parameters should be used?", lambda v: v["model_name"])
 
-    lines = [f'{i} {v["model_name"]}' for i, v in enumerate(model_params_list)]
-    print("Trained model files:")
-    print('\n'.join(lines) + '\n')
-    model_params_index = None
-    while model_params_index not in np.arange(0, len(model_params_list), 1):
-        model_params_index = int(input(
-            "Which trained model parameters should be used? (choose by index): "))
-    return model_params_list[model_params_index]
 
-def normalizer(params, data):
-    for idx,i in enumerate(params["normalization_mean"]):
-        data[:,idx] = (data[:,idx] - i) / params["normalization_std"][idx]
+def normalize(params, data):
+    for idx, i in enumerate(params["normalization_mean"]):
+        data[:, idx] = (data[:, idx] - i) / params["normalization_std"][idx]
     return data
+
 
 # choose model type and trained model parameters
 classification_model_class = choose_model_class()
@@ -188,7 +181,7 @@ def contact_detection(data):
     window_classification = np.append(
         window_classification[1:, :], features, axis=0)
     if "normalization_mean" in classification_model_params and "normalization_std" in classification_model_params:
-        window_classification = normalizer(classification_model_params,window_classification)
+        window_classification = normalize(classification_model_params,window_classification)
     features_tensor = torch.tensor(window_classification, dtype=torch.float32).unsqueeze(
         0).to(device)  # gives (1,window_size,feature_number)
 
