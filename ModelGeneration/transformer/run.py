@@ -11,48 +11,77 @@ from model import model_factory, count_parameters
 from optimizers import get_optimizer
 from loss import get_loss_module
 from Training import SupervisedTrainer, train_runner
-
+from pathlib import Path
+from dotenv import find_dotenv, load_dotenv
 logger = logging.getLogger('__main__')
-parser = argparse.ArgumentParser()
-# -------------------------------------------- Input and Output --------------------------------------------------------
-parser.add_argument('--output_dir', default=r'C:\Users\marco\master_project\humanObjectDetection\ModelGeneration\transformer\Results',
-                    help='Root output directory. Must exist. Time-stamped directories will be created inside.')
-parser.add_argument('--xfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\complete\x_sliding_left_offset.npy", type=str, help='specify which x file you want to load')
-parser.add_argument('--yfile',default=r"C:\Users\marco\master_project\humanObjectDetectionDataset\processedData\complete\y_sliding_left_offset.npy", type=str, help='specify which y file you want to load')
-parser.add_argument('--Norm', type=bool, default=True, help='Data Normalization')
-parser.add_argument('--val_ratio', type=float, default=0.1, help="Proportion of the train-set to be used as validation")
-# ----------------------------------------------------------------------------------------------------------------------
-# ------------------------------------- Model Parameter and Hyperparameter ---------------------------------------------
-parser.add_argument('--Net_Type', default=['C-T'], choices={'T', 'C-T'}, help="Network Architecture. Convolution (C)"
-                                                                              "Transformers (T)")
-# Transformers Parameters ------------------------------
-parser.add_argument('--emb_size', type=int, default=16, help='Internal dimension of transformer embeddings') #default 16
-parser.add_argument('--dim_ff', type=int, default=256, help='Dimension of dense feedforward part of transformer layer')
-parser.add_argument('--num_heads', type=int, default=8, help='Number of multi-headed attention heads')
-parser.add_argument('--Fix_pos_encode', choices={'tAPE', 'Learn', 'None'}, default='tAPE',
-                    help='Fix Position Embedding')
-parser.add_argument('--Rel_pos_encode', choices={'eRPE', 'Vector', 'None'}, default='eRPE',
-                    help='Relative Position Embedding')
-# Training Parameters/ Hyper-Parameters ----------------
-parser.add_argument('--epochs', type=int, default=110, help='Number of training epochs')
-parser.add_argument('--batch_size', type=int, default=512, help='Training batch size')
-parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
-parser.add_argument('--dropout', type=float, default=0.2, help='Droupout regularization ratio') # 0.01 default
-parser.add_argument('--val_interval', type=int, default=2, help='Evaluate on validation every XX epochs. Must be >= 1')
-parser.add_argument('--key_metric', choices={'loss', 'accuracy', 'precision'}, default='accuracy',
-                    help='Metric used for defining best epoch')
-parser.add_argument('--l2reg',type=float,default=0.01,help='Add L2 regularization during training')
-# ----------------------------------------------------------------------------------------------------------------------
-# ------------------------------------------------------ System --------------------------------------------------------
-parser.add_argument('--gpu', type=int, default='0', help='GPU index, -1 for CPU')
-parser.add_argument('--console', action='store_true', help="Optimize printout for console output; otherwise for file")
-parser.add_argument('--seed', default=1234, type=int, help='Seed used for splitting sets')
-args = parser.parse_args()
 
+
+def choose_dataset():
+    processed_data_path = Path(os.environ.get(
+        "DATASET_REPO_ROOT_PATH")) / "processedData"
+
+    sub_repo = dict([(str(i), p) for i, p in enumerate(
+        processed_data_path.iterdir()) if p.is_dir()])
+    print("sub repo:")
+    lines = [f'{key} {value.name}' for key, value in sub_repo.items()]
+    print('\n'.join(lines) + '\n')
+    subrepo_key = None
+    while subrepo_key not in sub_repo:
+        subrepo_key = input(
+            "Which sub repo should be used? (choose by index): ")
+
+    full_path = processed_data_path / sub_repo[subrepo_key]
+
+    datasets = dict([(str(i), p) for i, p in enumerate(full_path.iterdir())
+                     if p.is_file and p.name.startswith("x_") and p.suffix == ".npy" and "test" not in p.name])
+    lines = [f'{key} {value.name}' for key, value in datasets.items()]
+
+    print("Datasets:")
+    print('\n'.join(lines) + '\n')
+    dataset_key = None
+    while dataset_key not in datasets:
+        dataset_key = input(
+            "Which dataset should be used? (choose by index): ")
+    return sub_repo[subrepo_key], datasets[dataset_key]
+def choose_normalization_mode():
+    normalization_choice = ""
+    while normalization_choice not in ["y", "n"]:
+        normalization_choice = input(
+            "Should the data be normalized? (y / n): ").lower()
+    return True if normalization_choice == "y" else False
 
 
 if __name__ == '__main__':
-    config = Setup(args)  # configuration dictionary
+    load_dotenv(find_dotenv())
+    sub_repo,xfile = choose_dataset()
+    normalize = choose_normalization_mode()
+    yfile = (xfile.parent / xfile.name.replace("x_", "y_")).absolute()
+    output_dir = Path(os.environ.get("TRANSFORMER_RESULT_PATH"))
+    config = {  'output_dir':output_dir.absolute(),
+                'xfile':xfile,
+                'yfile':yfile,
+                'Norm':normalize,
+                'val_ratio':0.1,
+                'Net_Type':['C-T'], #choices={'T', 'C-T'}, help="Network Architecture. Convolution (C)" "Transformers (T)"
+                'emb_size':16,
+                'dim_ff':256,
+                'num_heads':8,
+                'Fix_pos_encode':'tAPE', #{'tAPE', 'Learn', 'None'}
+                'Rel_pos_encode':'eRPE', #{'eRPE', 'Vector', 'None'}
+                'epochs':100,
+                'batch_size':512,
+                'lr':1e-3,
+                'dropout':0.2,
+                'val_interval':2,
+                'key_metric':'loss', #{'loss', 'accuracy', 'precision'}, help='Metric used for defining best epoch'
+                'l2reg':0.01,
+                'gpu':'0',
+                'seed':1234,
+                'console':False #"Optimize printout for console output; otherwise for file"
+    }
+
+
+    config = Setup(config)  # configuration dictionary
     device = Initialization(config)
     # ------------------------------------ Load Data ---------------------------------------------------------------
     logger.info("Loading Data ...")
@@ -90,12 +119,3 @@ if __name__ == '__main__':
     for k, v in best_aggr_metrics_test.items():
         print_str += '{}: {} | '.format(k, v)
     print(print_str)
-    ##dic_position_results = [config['data_dir'].split('/')[-1]]
-    #dic_position_results.append(all_metrics['total_accuracy'])
-    #problem_df = pd.DataFrame(dic_position_results)
-    #problem_df.to_csv(os.path.join(config['pred_dir'] + '/' + 'test' + '.csv'))
-    #All_Results = ['Datasets', 'ConvTran']  # Use to store the accuracy of ConvTran in e.g "Result/Datasets/UEA"
-    #All_Results = np.vstack((All_Results, dic_position_results))
-
-    #All_Results_df = pd.DataFrame(All_Results)
-    #All_Results_df.to_csv(os.path.join(config['output_dir'], 'ConvTran_Results.csv'))

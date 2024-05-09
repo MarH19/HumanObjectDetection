@@ -19,33 +19,29 @@ def Initialization(config):
         logger.info("Device index: {}".format(torch.cuda.current_device()))
     return device
 
-def Setup(args):
+def Setup(config):
     """
         Input:
             args: arguments object from argparse
         Returns:
             config: configuration dictionary
     """
-    config = args.__dict__  # configuration dictionary
     # Create output directory
     initial_timestamp = datetime.now()
-    output_dir = config['output_dir']
+    output_dir = str(config['output_dir'])
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
-    model = config['xfile'].split("\\")[-1]
+    model = str(config['xfile']).split("\\")[-1]
     model = model[2:-4]
     output_dir = os.path.join(output_dir,model, initial_timestamp.strftime("%Y-%m-%d_%H-%M"))
     config['output_dir'] = output_dir
     config['save_dir'] = os.path.join(output_dir, 'checkpoints')
-    #config['pred_dir'] = os.path.join(output_dir, 'predictions')
-    #config['tensorboard_dir'] = os.path.join(output_dir, 'tb_summaries')
-    #create_dirs([config['save_dir'], config['pred_dir'], config['tensorboard_dir']])
     create_dirs([config['save_dir']])
+    config['xfile'] = str(config['xfile'])
+    config['yfile'] = str(config['yfile'])
     # Save configuration as a (pretty) json file
     with open(os.path.join(output_dir, 'configuration.json'), 'w') as fp:
         json.dump(config, fp, indent=4, sort_keys=True)
-
-  
 
     return config
 
