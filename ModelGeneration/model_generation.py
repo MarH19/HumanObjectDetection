@@ -1,8 +1,6 @@
 import os
 import sys
 
-from _util.util import user_input_choose_from_list
-
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 import json
@@ -17,12 +15,14 @@ import torch.optim as optim
 from dotenv import find_dotenv, load_dotenv
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
-from ModelGeneration.earlystopping import EarlyStopper
-from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel, GRUModelWithLayerNorm, LSTMModelWithLayerNorm,
-                                        RNNModelHyperParameters,
-                                        RNNModelHyperParameterSet)
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 
+from _util.util import user_input_choose_from_list
+from ModelGeneration.earlystopping import EarlyStopper
+from ModelGeneration.rnn_models import (GRUModel, GRUModelWithLayerNorm,
+                                        LSTMModel, LSTMModelWithLayerNorm,
+                                        RNNModel, RNNModelHyperParameters,
+                                        RNNModelHyperParameterSet)
 
 # ===========================================================================================================================================================
 # on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjectDetectionEnv)
@@ -347,13 +347,20 @@ if __name__ == '__main__':
         str((X_file.parent / X_file.name.replace("x_", "y_")).absolute()))
 
     # filter X features to fit model
-    torque_indices = np.arange(0, 7, 1)
-    position_error_indices = np.arange(28, 35, 1)
-    velocity_error_indices = np.arange(35, 42, 1)
-    feature_indices = np.concatenate(
-        (torque_indices, position_error_indices, velocity_error_indices))
+    target_torque = ['tau_J0', 'tau_J1', 'tau_J2',
+                     'tau_J3', 'tau_J4', 'tau_J5', 'tau_J6']
+    target_position_err = ['e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6']
+    target_velocity_err = ['de0', 'de1', 'de2', 'de3', 'de4', 'de5', 'de6']
+    model_features = target_torque + target_position_err + target_velocity_err
+
+    dataset_targets = np.load(str((Path(os.environ.get(
+        "DATASET_REPO_ROOT_PATH")) / "processedData" / "targets.npy").absolute()))
+
+    feature_indices = np.where(np.isin(dataset_targets, model_features))[0]
     X = X[:, :, feature_indices]
+
     encoder = LabelEncoder()
+    
     if sub_repo != 'test_train_split':
         X_train, X_test, y_train, y_test = train_test_split(
             X, encoder.fit_transform(y), test_size=0.1)
