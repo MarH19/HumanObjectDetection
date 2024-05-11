@@ -9,15 +9,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from copy import deepcopy
 
+from _util.util import normalize_dataset
+
 
 def Initialization(config):
     if config['seed'] is not None:
         torch.manual_seed(config['seed'])
-    device = torch.device('cuda' if (torch.cuda.is_available() and config['gpu'] != '-1') else 'cpu')
+    device = torch.device('cuda' if (
+        torch.cuda.is_available() and config['gpu'] != '-1') else 'cpu')
     logger.info("Using device: {}".format(device))
     if device == 'cuda':
         logger.info("Device index: {}".format(torch.cuda.current_device()))
     return device
+
 
 def Setup(config):
     """
@@ -33,7 +37,8 @@ def Setup(config):
         os.makedirs(output_dir)
     model = str(config['xfile']).split("\\")[-1]
     model = model[2:-4]
-    output_dir = os.path.join(output_dir,model, initial_timestamp.strftime("%Y-%m-%d_%H-%M"))
+    output_dir = os.path.join(
+        output_dir, model, initial_timestamp.strftime("%Y-%m-%d_%H-%M"))
     config['output_dir'] = output_dir
     config['save_dir'] = os.path.join(output_dir, 'checkpoints')
     create_dirs([config['save_dir']])
@@ -44,6 +49,7 @@ def Setup(config):
         json.dump(config, fp, indent=4, sort_keys=True)
 
     return config
+
 
 def create_dirs(dirs):
     """
@@ -61,64 +67,65 @@ def create_dirs(dirs):
         print("Creating directories error: {0}".format(err))
         exit(-1)
 
-     
+
 class myDataLoader(torch.utils.data.Dataset):
-  def __init__(self, X_path, y_path, output,test_size=0.2, val_size=0.1, random_state=42, normalize=False):
-    self.X = np.load(X_path)
-    self.y = np.load(y_path)
-    torque_indices = np.arange(0,7,1)
-    position_error_indices = np.arange(28,35,1)
-    velocity_error_indices = np.arange(35,42,1)
-    selection = np.concatenate((torque_indices, position_error_indices, velocity_error_indices))
-    self.X = self.X[:, :, selection]
-    label_encoder = LabelEncoder()
-    self.y = label_encoder.fit_transform(self.y)
-    self.X = np.swapaxes(self.X, 1, 2) # swap axes such that #samples, #features #winwdowlength
+    def __init__(self, X_path, y_path, output, test_size=0.2, val_size=0.1, random_state=42, normalization_mode=""):
+        self.X = np.load(X_path)
+        self.y = np.load(y_path)
+        torque_indices = np.arange(0, 7, 1)
+        position_error_indices = np.arange(28, 35, 1)
+        velocity_error_indices = np.arange(35, 42, 1)
+        selection = np.concatenate(
+            (torque_indices, position_error_indices, velocity_error_indices))
+        self.X = self.X[:, :, selection]
+        label_encoder = LabelEncoder()
+        self.y = label_encoder.fit_transform(self.y)
+        # swap axes such that #samples, #features #winwdowlength
+        self.X = np.swapaxes(self.X, 1, 2)
 
-    # Split data into train/test sets
-    self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=test_size, random_state=random_state)
-    max = []
-    min = []
-    if normalize:
-        for i in range(self.X_train.shape[1]):
-            scaler = MinMaxScaler()
-            self.X_train[:, i, :] = scaler.fit_transform(self.X_train[:, i,:]) 
-            self.X_test[:, i, :] = scaler.transform(self.X_test[:, i, :])
-            max.append((scaler.data_max_).tolist())
-            min.append((scaler.data_min_).tolist())
-        data  = {'normalization_max':max,
-                 'normalization_min': min}
-        with open(os.path.join(output, 'configuration.json'), 'r') as f:
-            config = json.load(f)
-        config.update(data)
-        with open(os.path.join(output, 'configuration.json'), 'w') as f:
-            json.dump(config, f)
-             
+        # Split data into train/test sets
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+            self.X, self.y, test_size=test_size, random_state=random_state)
+        self.X_train, self.X_test, norm_mins, norm_maxes, norm_means, norm_vars = normalize_dataset(
+            normalization_mode, self.X_train, self.X_test)
+        if normalization_mode != "":
+            norm_data = {}
+            if (norm_maxes is not None and norm_mins is not None):
+                norm_data['normalization_max'] = norm_maxes
+                norm_data['normalization_min'] = norm_mins
+            elif (norm_means is not None and norm_vars is not None):
+                norm_data['normalization_mean'] = norm_means
+                norm_data['normalization_var'] = norm_vars
+            with open(os.path.join(output, 'configuration.json'), 'r') as f:
+                config = json.load(f)
+            config.update(norm_data)
+            with open(os.path.join(output, 'configuration.json'), 'w') as f:
+                json.dump(config, f)
 
-    # Further split train data into train/val sets
-    if val_size > 0:
-      self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(self.X_train, self.y_train, test_size=val_size, random_state=random_state)
-    else:
-      self.X_val = None
-      self.y_val = None
-    
+        # Further split train data into train/val sets
+        if val_size > 0:
+            self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
+                self.X_train, self.y_train, test_size=val_size, random_state=random_state)
+        else:
+            self.X_val = None
+            self.y_val = None
 
-  def __len__(self):
-    # Depending on usage, return length of appropriate data
-    if hasattr(self, 'X_train'):
-      return len(self.X_train)
-    elif hasattr(self, 'X_val'):
-      return len(self.X_val)  # Access validation data length
-    else:
-      return len(self.X_test)
+    def __len__(self):
+        # Depending on usage, return length of appropriate data
+        if hasattr(self, 'X_train'):
+            return len(self.X_train)
+        elif hasattr(self, 'X_val'):
+            return len(self.X_val)  # Access validation data length
+        else:
+            return len(self.X_test)
 
-  def __getitem__(self, idx):
-    if hasattr(self, 'X_train'):  # Access training data
-      return torch.tensor(self.X_train[idx],dtype=torch.float32), torch.tensor(self.y_train[idx],dtype=torch.long),idx
-    elif hasattr(self, 'X_val'):  # Access validation data
-      return torch.tensor(self.X_val[idx],dtype=torch.float32), torch.tensor(self.y_val[idx],dtype=torch.long),idx
-    else:  # Access test data
-      return torch.tensor(self.X_test[idx],dtype=torch.float32), torch.tensor(self.y_test[idx],dtype=torch.long),idx
+    def __getitem__(self, idx):
+        if hasattr(self, 'X_train'):  # Access training data
+            return torch.tensor(self.X_train[idx], dtype=torch.float32), torch.tensor(self.y_train[idx], dtype=torch.long), idx
+        elif hasattr(self, 'X_val'):  # Access validation data
+            return torch.tensor(self.X_val[idx], dtype=torch.float32), torch.tensor(self.y_val[idx], dtype=torch.long), idx
+        else:  # Access test data
+            return torch.tensor(self.X_test[idx], dtype=torch.float32), torch.tensor(self.y_test[idx], dtype=torch.long), idx
 
 
 class Printer(object):
@@ -147,8 +154,10 @@ def readable_time(time_difference):
 
     return hours, minutes, seconds
 
+
 import logging
-logging.basicConfig(format='%(asctime)s | %(levelname)s : %(message)s', level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s | %(levelname)s : %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 # plt.style.use('ggplot')
 
@@ -200,15 +209,17 @@ class SaveBestModel:
 
 def load_model(model, model_path, optimizer=None, resume=False, change_output=False,
                lr=None, lr_step=None, lr_factor=None):
-    
-    checkpoint = torch.load(model_path, map_location=lambda storage, loc: storage)
+
+    checkpoint = torch.load(
+        model_path, map_location=lambda storage, loc: storage)
     state_dict = deepcopy(checkpoint['state_dict'])
     if change_output:
         for key, val in checkpoint['state_dict'].items():
             if key.startswith('output_layer'):
                 state_dict.pop(key)
     model.load_state_dict(state_dict, strict=False)
-    print('Loaded model from {}. Epoch: {}'.format(model_path, checkpoint['epoch']))
+    print('Loaded model from {}. Epoch: {}'.format(
+        model_path, checkpoint['epoch']))
     start_epoch = checkpoint['epoch']
     # resume optimizer parameters
     if optimizer is not None and resume:

@@ -17,7 +17,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 
-from _util.util import user_input_choose_from_list
+from _util.util import choose_dataset, normalize_dataset, user_input_choose_from_list, choose_normalization_mode
 from ModelGeneration.earlystopping import EarlyStopper
 from ModelGeneration.rnn_models import (GRUModel, GRUModelWithLayerNorm,
                                         LSTMModel, LSTMModelWithLayerNorm,
@@ -250,7 +250,7 @@ def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], f
     plt.close()
 
 
-def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet, optimizer, max, min):
+def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet, optimizer, norm_maxes, norm_mins, norm_means, norm_vars):
     model_params_list = []
     file_path = get_trained_models_path() / "RnnModelsParameters.json"
     print(file_path)
@@ -272,55 +272,20 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet,
         'optimizer': optimizer,
     }
 
-    if (len(max) != 0) and (len(min) != 0):
-        new_params['normalization_max'] = max
-        new_params['normalization_min'] = min
+    if (norm_maxes is not None and norm_mins is not None):
+        new_params['normalization_max'] = norm_maxes
+        new_params['normalization_min'] = norm_mins
+    elif (norm_means is not None and norm_vars is not None):
+        new_params['normalization_mean'] = norm_means
+        new_params['normalization_var'] = norm_vars
 
     model_params_list.append(new_params)
-
     with open(str(file_path.absolute()), 'w') as f:
         json.dump(model_params_list, f, indent=4)
 
 
 def choose_rnn_model_class() -> Type[RNNModel]:
     return user_input_choose_from_list(model_classes, "RNN Model Classes", lambda v: v.__name__)
-
-
-def choose_dataset():
-    processed_data_path = Path(os.environ.get(
-        "DATASET_REPO_ROOT_PATH")) / "processedData"
-
-    sub_repo = dict([(str(i), p) for i, p in enumerate(
-        processed_data_path.iterdir()) if p.is_dir()])
-    print("sub repo:")
-    lines = [f'{key} {value.name}' for key, value in sub_repo.items()]
-    print('\n'.join(lines) + '\n')
-    subrepo_key = None
-    while subrepo_key not in sub_repo:
-        subrepo_key = input(
-            "Which sub repo should be used? (choose by index): ")
-
-    full_path = processed_data_path / sub_repo[subrepo_key]
-
-    datasets = dict([(str(i), p) for i, p in enumerate(full_path.iterdir())
-                     if p.is_file and p.name.startswith("x_") and p.suffix == ".npy" and "test" not in p.name])
-    lines = [f'{key} {value.name}' for key, value in datasets.items()]
-
-    print("Datasets:")
-    print('\n'.join(lines) + '\n')
-    dataset_key = None
-    while dataset_key not in datasets:
-        dataset_key = input(
-            "Which dataset should be used? (choose by index): ")
-    return sub_repo[subrepo_key], datasets[dataset_key]
-
-
-def choose_normalization_mode():
-    normalization_choice = ""
-    while normalization_choice not in ["y", "n"]:
-        normalization_choice = input(
-            "Should the data be normalized? (y / n): ").lower()
-    return True if normalization_choice == "y" else False
 
 
 def choose_optimizer():
@@ -336,7 +301,7 @@ if __name__ == '__main__':
 
     model_class = choose_rnn_model_class()
     sub_repo, X_file = choose_dataset()
-    normalize = choose_normalization_mode()
+    normalization_mode = choose_normalization_mode()
     optimizer = choose_optimizer()
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -360,7 +325,6 @@ if __name__ == '__main__':
     X = X[:, :, feature_indices]
 
     encoder = LabelEncoder()
-    
     if sub_repo != 'test_train_split':
         X_train, X_test, y_train, y_test = train_test_split(
             X, encoder.fit_transform(y), test_size=0.1)
@@ -377,16 +341,8 @@ if __name__ == '__main__':
         files_suffix = X_file.name.replace(
             "x_train", "split").replace(".npy", "")
 
-    max = []
-    min = []
-    if normalize:
-        for i in range(X_train.shape[2]):
-            scaler = MinMaxScaler()
-            X_train[:, :, i] = scaler.fit_transform(X_train[:, :, i])
-            X_test[:, :, i] = scaler.transform(X_test[:, :, i])
-            max.append((scaler.data_max_).tolist())
-            min.append((scaler.data_min_).tolist())
-        files_suffix += "_norm"
+    X_train, X_test, norm_mins, norm_maxes, norm_means, norm_vars = normalize_dataset(
+        normalization_mode, X_train, X_test)
 
     rnn_model_trainer = RNNModelTrainer(
         device=device,
@@ -406,7 +362,7 @@ if __name__ == '__main__':
             {rnn_model_trainer.hyperparameters.best_hyperparameters.hidden_size} hidden size""")
 
     save_hyperparameters(
-        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters, rnn_model_trainer.optimizer, max, min)
+        f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters, rnn_model_trainer.optimizer, norm_maxes, norm_mins, norm_means, norm_vars)
 
     # train and evaluate the model
     rnn_model_trainer.train_model(file_suffix=files_suffix)

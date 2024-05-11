@@ -126,10 +126,14 @@ def load_transformer_classification_model(model_path: Path):
 
 def normalize_window(window):
     params = rnn_model_params if model_type == "RNN" else transformer_config
-    if "normalization_max" in params and "normalization_min" in params:
-        for idx, i in enumerate(params["normalization_max"]):
-            min = params["normalization_min"][idx]
-            window[:, idx] = (window[:, idx] - min) / (i - min)
+    if "normalization_max" in params and "normalization_min" in params and len(params["normalization_max"]) == window.shape[1] and len(params["normalization_min"]) == window.shape[1]:
+        for i, max in enumerate(params["normalization_max"]):
+            min = params["normalization_min"][i]
+            window[:, i] = (window[:, i] - min) / (max - min)
+    elif "normalization_mean" in params and "normalization_std" in params and len(params["normalization_mean"]) == window.shape[1] and len(params["normalization_std"]) == window.shape[1]:
+        for i, mean in enumerate(params["normalization_mean"]):
+            std = params["normalization_std"][i]
+            window[:, i] = (window[:, i] - mean) / std
     return window
 
 
