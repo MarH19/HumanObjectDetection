@@ -86,9 +86,9 @@ class myDataLoader(torch.utils.data.Dataset):
         # Split data into train/test sets
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             self.X, self.y, test_size=test_size, random_state=random_state)
-        self.X_train, self.X_test, norm_mins, norm_maxes, norm_means, norm_vars = normalize_dataset(
+        self.X_train, self.X_test, norm_mins, norm_maxes, norm_means, norm_vars, is_normalized = normalize_dataset(
             normalization_mode, self.X_train, self.X_test)
-        if normalization_mode != "":
+        if is_normalized:
             norm_data = {}
             if (norm_maxes is not None and norm_mins is not None):
                 norm_data['normalization_max'] = norm_maxes

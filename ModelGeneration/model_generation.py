@@ -32,10 +32,11 @@ model_classes: "list[Type[RNNModel]]" = [LSTMModel,
                                          LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
 
 
-hidden_sizes = [16, 32, 64, 128]  # , 256]
-num_layers = [1, 2, 3]  # , 4]
-epochs = np.arange(100, 201, 50)
-learning_rates = [0.001, 0.01, 0.0001, 0.1]
+hidden_sizes = [16, 32, 64, 128]
+num_layers = [1, 2, 3, 4, 5]
+epochs = np.arange(100, 176, 25)
+learning_rates = [0.0001, 0.001, 0.01, 0.1]
+dropout_rates = [0.1, 0.2, 0.3, 0.4, 0.5]
 input_size = 21
 output_size = 3
 
@@ -91,7 +92,7 @@ class RNNModelTrainer():
         current_best_val_score = np.inf
         for hp in self.hyperparameters.get_hyperparameter_combinations():
             print(
-                f"cross-validation with {hp.epochs} epochs, {hp.learning_rate} learning rate, {hp.num_layers} layers, and {hp.hidden_size} hidden units")
+                f"cross-validation with {hp.epochs} epochs, {hp.learning_rate} learning rate, {hp.num_layers} layers, {hp.hidden_size} hidden units, dropout rate: {hp.dropout_rate}")
 
             validation_losses = []
             accuracies = []
@@ -102,7 +103,7 @@ class RNNModelTrainer():
 
                 # instantiate RNN model
                 model = self.model_class(input_size=self.hyperparameters.input_size, hidden_size=hp.hidden_size,
-                                         num_layers=hp.num_layers, output_size=self.hyperparameters.output_size)
+                                         num_layers=hp.num_layers, dropout_rate=hp.dropout_rate, output_size=self.hyperparameters.output_size)
                 model = model.to(self.device)
 
                 # Define loss function and optimizer
@@ -115,6 +116,7 @@ class RNNModelTrainer():
                         model.parameters(), lr=hp.learning_rate)
 
                 # Train the model
+                model.train()
                 for _ in range(hp.epochs):
                     optimizer.zero_grad()
                     outputs = model(X_train_tensor)
@@ -123,6 +125,7 @@ class RNNModelTrainer():
                     optimizer.step()
 
                 # Calculate validation loss and accuracy
+                model.eval()
                 with torch.no_grad():
                     val_outputs = model(X_val_tensor)
                     val_loss = criterion(val_outputs, y_val_tensor)
@@ -147,10 +150,15 @@ class RNNModelTrainer():
 
     def train_model(self, file_suffix):
         # Create LSTM model
-        model = self.model_class(self.hyperparameters.input_size, self.hyperparameters.best_hyperparameters.hidden_size,
-                                 self.hyperparameters.best_hyperparameters.num_layers, self.hyperparameters.output_size)
+        model = self.model_class(input_size=self.hyperparameters.input_size, hidden_size=self.hyperparameters.best_hyperparameters.hidden_size,
+                                 num_layers=self.hyperparameters.best_hyperparameters.num_layers, output_size=self.hyperparameters.output_size,
+                                 dropout_rate=self.hyperparameters.best_hyperparameters.dropout_rate)
+
         model = model.to(self.device)
+        model.train()
+
         stopper = EarlyStopper()
+
         X_train_tensor = torch.tensor(
             self.X_train, dtype=torch.float32).to(self.device)
         if self.hyperparameters.output_size == 1:
@@ -267,7 +275,8 @@ def save_hyperparameters(model_name, hyperparameters: RNNModelHyperParameterSet,
             "hidden_size": int(hyperparameters.hidden_size),
             "num_layers": int(hyperparameters.num_layers),
             "epochs": int(hyperparameters.epochs),
-            "learning_rate": float(hyperparameters.learning_rate)
+            "learning_rate": float(hyperparameters.learning_rate),
+            "dropout_rate": float(hyperparameters.dropout_rate) if hyperparameters.dropout_rate is not None else None
         },
         'optimizer': optimizer,
     }
@@ -289,11 +298,15 @@ def choose_rnn_model_class() -> Type[RNNModel]:
 
 
 def choose_optimizer():
-    optimizer_choice = ""
-    while optimizer_choice not in ["0", "1"]:
-        optimizer_choice = input(
-            "Which optimizer do you want to use? (Adam=0 / AdamW=1): ").lower()
-    return "AdamW" if optimizer_choice == "1" else "Adam"
+    optimizers = ["Adam", "AdamW"]
+    return user_input_choose_from_list(optimizers, "Choose optimizer")
+
+
+def choose_dropout_mode():
+    dropout_modes = [
+        {"key": 0, "caption": "NO Dropout"},
+        {"key": 1, "caption": "Dropout"}]
+    return user_input_choose_from_list(dropout_modes, "Dropout Mode", lambda m: m["caption"])
 
 
 if __name__ == '__main__':
@@ -303,6 +316,7 @@ if __name__ == '__main__':
     sub_repo, X_file = choose_dataset()
     normalization_mode = choose_normalization_mode()
     optimizer = choose_optimizer()
+    dropout_mode = choose_dropout_mode()
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
@@ -341,15 +355,17 @@ if __name__ == '__main__':
         files_suffix = X_file.name.replace(
             "x_train", "split").replace(".npy", "")
 
-    X_train, X_test, norm_mins, norm_maxes, norm_means, norm_vars = normalize_dataset(
+    X_train, X_test, norm_mins, norm_maxes, norm_means, norm_vars, is_normalized = normalize_dataset(
         normalization_mode, X_train, X_test)
+    files_suffix = files_suffix + "_norm" if is_normalized else files_suffix
 
     rnn_model_trainer = RNNModelTrainer(
         device=device,
         model_class=model_class,
         hyperparameters=RNNModelHyperParameters(
             hidden_sizes=hidden_sizes, num_layers=num_layers, epochs=epochs,
-            learning_rates=learning_rates, input_size=input_size, output_size=output_size),
+            learning_rates=learning_rates, dropout_rates=dropout_rates if dropout_mode == 1 else None,
+            input_size=input_size, output_size=output_size),
         X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, optimizer=optimizer)
 
     # k-fold cross validation for hyperparameters

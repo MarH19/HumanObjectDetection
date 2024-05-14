@@ -43,10 +43,7 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-import json
-from pathlib import Path
 from threading import Event
-from typing import Type
 
 import numpy as np
 import pandas as pd
@@ -59,82 +56,17 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from torchvision import transforms
 
-from _util.util import choose_robot_motion, user_input_choose_from_list
+from _util.util import (choose_model_type, choose_robot_motion,
+                        choose_trained_rnn_model,
+                        choose_trained_transformer_model, get_repo_root_path,
+                        load_rnn_classification_model,
+                        load_transformer_classification_model,
+                        normalize_window)
 from ModelGeneration.model_generation import choose_rnn_model_class
-from ModelGeneration.rnn_models import RNNModel
-from ModelGeneration.transformer.model import ConvTran
 
-repo_root_path = Path(__file__).parents[1]
 classification_model_input_size = 21
 window_classification_length = 40
 labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
-
-
-def choose_model_type():
-    return user_input_choose_from_list(["RNN", "Transformer"], "Model Types")
-
-
-def choose_trained_rnn_model(model_class: Type[RNNModel]):
-    trained_models_path = repo_root_path / "ModelGeneration" / "TrainedModels"
-    with open(str((trained_models_path / "RnnModelsParameters.json").absolute()), 'r') as f:
-        model_params = json.load(f)
-    model_params = [
-        m for m in model_params if m["model_name"].startswith(model_class.__name__ + "_")]
-    model_params = sorted(
-        model_params, key=lambda d: d['model_name'])
-    return user_input_choose_from_list(model_params, "Trained model files", lambda v: v["model_name"])
-
-
-def choose_trained_transformer_model():
-    transformer_results_path = repo_root_path / \
-        "ModelGeneration" / "transformer" / "Results"
-    trained_model_paths = []
-    for sp in transformer_results_path.iterdir():
-        if sp.is_dir() and sp.name != "old_models":
-            trained_model_paths += [p for _,
-                                    p in enumerate(sp.iterdir()) if p.is_dir()]
-    return user_input_choose_from_list(trained_model_paths, "Trained Transformer models", lambda p: f"{p.parent.name}/{p.name}")
-
-
-def load_rnn_classification_model(model_class: type[RNNModel], params):
-    model_name = rnn_model_params["model_name"]
-    classification_path = repo_root_path / "ModelGeneration" / \
-        "TrainedModels" / f"{model_name}.pth"
-    model_classification = rnn_model_class(
-        input_size=classification_model_input_size, hidden_size=rnn_model_params[
-            "hyperparameters"]["hidden_size"],
-        num_layers=rnn_model_params["hyperparameters"]["num_layers"], output_size=len(labels_classification))
-    model_classification.load_state_dict(torch.load(
-        str(classification_path.absolute()), map_location='cpu'))
-    return model_classification
-
-
-def load_transformer_classification_model(model_path: Path):
-    checkpoint_path = model_path / "checkpoints" / "model_last.pth"
-    config_path = model_path / "configuration.json"
-    with open(str((config_path).absolute()), 'r') as f:
-        config = json.load(f)
-    config['Data_shape'] = [
-        1, classification_model_input_size, window_classification_length]
-    model_classification = ConvTran(
-        config=config, num_classes=len(labels_classification))
-    saved_params = torch.load(
-        str(checkpoint_path.absolute()), map_location='cpu')
-    model_classification.load_state_dict(saved_params["state_dict"])
-    return model_classification, config
-
-
-def normalize_window(window):
-    params = rnn_model_params if model_type == "RNN" else transformer_config
-    if "normalization_max" in params and "normalization_min" in params and len(params["normalization_max"]) == window.shape[1] and len(params["normalization_min"]) == window.shape[1]:
-        for i, max in enumerate(params["normalization_max"]):
-            min = params["normalization_min"][i]
-            window[:, i] = (window[:, i] - min) / (max - min)
-    elif "normalization_mean" in params and "normalization_std" in params and len(params["normalization_mean"]) == window.shape[1] and len(params["normalization_std"]) == window.shape[1]:
-        for i, mean in enumerate(params["normalization_mean"]):
-            std = params["normalization_std"][i]
-            window[:, i] = (window[:, i] - mean) / std
-    return window
 
 
 # choose trained model
@@ -144,11 +76,11 @@ if model_type == "RNN":
     rnn_model_class = choose_rnn_model_class()
     rnn_model_params = choose_trained_rnn_model(rnn_model_class)
     model_classification = load_rnn_classification_model(
-        rnn_model_class, rnn_model_params)
+        rnn_model_class, rnn_model_params, classification_model_input_size, len(labels_classification))
 elif model_type == "Transformer":
     transformer_model_path = choose_trained_transformer_model()
     model_classification, transformer_config = load_transformer_classification_model(
-        transformer_model_path)
+        transformer_model_path, classification_model_input_size, len(labels_classification), window_classification_length)
 
 robot_motion_path = choose_robot_motion()
 print()
@@ -163,7 +95,7 @@ contact_detection_dof = 7
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # load contact detection model
-contact_detection_path = repo_root_path / \
+contact_detection_path = get_repo_root_path() / \
     'AIModels' / 'trainedModels' / 'contactDetection' / \
     'trainedModel_01_24_2024_11_18_01.pth'
 model_contact, labels_map_contact = import_lstm_models(
@@ -235,7 +167,8 @@ def contact_predictions(data):
         if classification_counter == 2:
             with torch.no_grad():
                 # normalize data if normalization was done during model training
-                classification_window = normalize_window(classification_window)
+                classification_window = normalize_window(
+                    classification_window, rnn_model_params if model_type == "RNN" else transformer_config)
                 if model_type == "RNN":
                     classification_tensor = torch.tensor(
                         classification_window, dtype=torch.float32).unsqueeze(0).to(device)
