@@ -6,8 +6,8 @@ from collections import OrderedDict
 import time
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
-
-
+import sys
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 import utils, analysis
 
 logger = logging.getLogger('__main__')
