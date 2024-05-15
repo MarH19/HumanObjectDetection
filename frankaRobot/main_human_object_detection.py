@@ -86,23 +86,23 @@ robot_motion_path = choose_robot_motion()
 print()
 
 # Define parameters for the contact detection / localization models
-#contact_detection_num_features_lstm = 4
-#contact_detection_window_length = 28
-#contact_detection_nof_features = 28
-#contact_detection_dof = 7
+contact_detection_num_features_lstm = 4
+contact_detection_window_length = 28
+contact_detection_nof_features = 28
+contact_detection_dof = 7
 
 # Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # load contact detection model
-#contact_detection_path = get_repo_root_path() / \
-#    'AIModels' / 'trainedModels' / 'contactDetection' / \
-#    'trainedModel_01_24_2024_11_18_01.pth'
-#model_contact, labels_map_contact = import_lstm_models(
-#    PATH=str(contact_detection_path.absolute()), num_features_lstm=contact_detection_num_features_lstm)
+contact_detection_path = get_repo_root_path() / \
+    'AIModels' / 'trainedModels' / 'contactDetection' / \
+    'trainedModel_01_24_2024_11_18_01.pth'
+model_contact, labels_map_contact = import_lstm_models(
+    PATH=str(contact_detection_path.absolute()), num_features_lstm=contact_detection_num_features_lstm)
 
 # Move PyTorch models to the selected device
-#model_contact = model_contact.to(device)
+model_contact = model_contact.to(device)
 model_classification = model_classification.to(device)
 model_classification.eval()
 
@@ -110,27 +110,23 @@ model_classification.eval()
 contact_detection_transform = transforms.Compose([transforms.ToTensor()])
 
 # Initialize remaining variables
-#contact_detection_window = np.zeros(
-#    [contact_detection_window_length, contact_detection_nof_features])
+contact_detection_window = np.zeros(
+    [contact_detection_window_length, contact_detection_nof_features])
 classification_window = np.zeros(
     [window_classification_length, classification_model_input_size])
 model_output_msg = Floats()
 classification_counter = 0
 
-contact_timer = None
-has_contact = 0
-
 def contact_predictions(data):
-    #global contact_detection_window, publish_output, big_time_digits
+    global contact_detection_window, publish_output, big_time_digits
     global classification_window, classification_counter
-    global has_contact
 
     start_time = rospy.get_time()
 
     e_q = np.array(data.q_d) - np.array(data.q)
     e_dq = np.array(data.dq_d) - np.array(data.dq)
     tau_J = np.array(data.tau_J)
-    #tau_ext = np.multiply(np.array(data.tau_ext_hat_filtered), 0.5)
+    tau_ext = np.multiply(np.array(data.tau_ext_hat_filtered), 0.5)
 
     # Data for contact detection
     #contact_detection_row = np.hstack((tau_J, tau_ext, e_q, e_dq))
@@ -162,37 +158,39 @@ def contact_predictions(data):
     #    model_out = model_out.detach()
     #    output = torch.argmax(model_out, dim=1)
 
-    # Run classification model
-    contact = -1 #output.cpu().numpy()[0]
+    ## Run classification model
+    contact = -1
+    #contact = output.cpu().numpy()[0]
     contact_object_prediction = -1
-    if has_contact == 1:
-        # only do a classification every 3rd time a contact is detected (0, 1, 2)
-        if classification_counter == 2:
-            with torch.no_grad():
-                # normalize data if normalization was done during model training
-                classification_window = normalize_window(
-                    classification_window, rnn_model_params if model_type == "RNN" else transformer_config)
-                if model_type == "RNN":
-                    classification_tensor = torch.tensor(
-                        classification_window, dtype=torch.float32).unsqueeze(0).to(device)
-                    model_out = model_classification(classification_tensor)
-                    contact_object_prediction = model_classification.get_predictions(
-                        model_out)
-                elif model_type == "Transformer":
-                    classification_tensor = torch.tensor(
-                        np.swapaxes(classification_window, 0, 1), dtype=torch.float32).unsqueeze(0).to(device)
-                    model_out = model_classification(classification_tensor)
-                    contact_object_prediction = torch.argmax(
-                        torch.nn.functional.softmax(model_out, dim=1), dim=1).cpu().numpy()
-        # increment / reset classification counter
-        classification_counter = (classification_counter + 1) % 3
-    else:
-        # reset classification counter if no contact -> classification model runs only
-        classification_counter = 0
+    #if contact == 1:
+    # only do a classification every 3rd time a contact is detected (0, 1, 2)
+    if classification_counter == 2:
+        with torch.no_grad():
+            # normalize data if normalization was done during model training
+            #classification_window = normalize_window(
+            #    classification_window, rnn_model_params if model_type == "RNN" else transformer_config)
+            if model_type == "RNN":
+                classification_tensor = torch.tensor(
+                    classification_window, dtype=torch.float32).unsqueeze(0).to(device)
+                model_out = model_classification(classification_tensor)
+                contact_object_prediction = model_classification.get_predictions(
+                    model_out)
+            elif model_type == "Transformer":
+                classification_tensor = torch.tensor(
+                    np.swapaxes(classification_window, 0, 1), dtype=torch.float32).unsqueeze(0).to(device)
+                model_out = model_classification(classification_tensor)
+                contact_object_prediction = torch.argmax(
+                    torch.nn.functional.softmax(model_out, dim=1), dim=1).cpu().numpy()
+    # increment / reset classification counter
+    classification_counter = (classification_counter + 1) % 3
+    #else:
+    #    # reset classification counter if no contact -> classification model runs only
+    #    classification_counter = 0
 
     all_models_prediction_duration = rospy.get_time() - start_time
-    rospy.loginfo(
-        f'all modelsprediction duration: {all_models_prediction_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
+    if contact_object_prediction != -1:
+        rospy.loginfo(
+            f'all modelsprediction duration: {all_models_prediction_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
 
     start_time = np.array(start_time).tolist()
     time_sec = int(start_time)
@@ -217,7 +215,7 @@ def move_robot(fa: FrankaArm, event: Event):
         try:
             for i in range(joints.shape[0]):
                 fa.goto_joints(
-                    np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.75)
+                    np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.5)
                 # time.sleep(0.01)
 
         except Exception as e:
@@ -226,17 +224,6 @@ def move_robot(fa: FrankaArm, event: Event):
             break
 
     print('fininshed .... !')
-
-def contact_timer_callback(_):
-    global has_contact
-    has_contact = 0
-
-def contact_time_index_callback(_):
-    global contact_timer, has_contact
-    has_contact = 1
-    if contact_timer is not None:
-        contact_timer.shutdown()
-    contact_timer = rospy.Timer(rospy.Duration(0.005), contact_timer_callback)
 
 
 if __name__ == "__main__":
@@ -249,8 +236,6 @@ if __name__ == "__main__":
     # subscribe robot data topic for contact detection module
     rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state",
                      data_class=RobotState, callback=contact_predictions)
-    rospy.Subscriber(name="/contactTimeIndex",
-                         data_class=numpy_msg(Floats), callback=contact_time_index_callback)
     model_pub = rospy.Publisher(
         "/model_output", numpy_msg(Floats), queue_size=1)
     move_robot(fa, event)
