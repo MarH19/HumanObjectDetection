@@ -86,23 +86,23 @@ robot_motion_path = choose_robot_motion()
 print()
 
 # Define parameters for the contact detection / localization models
-contact_detection_num_features_lstm = 4
-contact_detection_window_length = 28
-contact_detection_nof_features = 28
-contact_detection_dof = 7
+#contact_detection_num_features_lstm = 4
+#contact_detection_window_length = 28
+#contact_detection_nof_features = 28
+#contact_detection_dof = 7
 
 # Set device for PyTorch models and select first GPU cuda:0
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # load contact detection model
-contact_detection_path = get_repo_root_path() / \
-    'AIModels' / 'trainedModels' / 'contactDetection' / \
-    'trainedModel_01_24_2024_11_18_01.pth'
-model_contact, labels_map_contact = import_lstm_models(
-    PATH=str(contact_detection_path.absolute()), num_features_lstm=contact_detection_num_features_lstm)
+#contact_detection_path = get_repo_root_path() / \
+#    'AIModels' / 'trainedModels' / 'contactDetection' / \
+#    'trainedModel_01_24_2024_11_18_01.pth'
+#model_contact, labels_map_contact = import_lstm_models(
+#    PATH=str(contact_detection_path.absolute()), num_features_lstm=contact_detection_num_features_lstm)
 
 # Move PyTorch models to the selected device
-model_contact = model_contact.to(device)
+#model_contact = model_contact.to(device)
 model_classification = model_classification.to(device)
 model_classification.eval()
 
@@ -110,39 +110,41 @@ model_classification.eval()
 contact_detection_transform = transforms.Compose([transforms.ToTensor()])
 
 # Initialize remaining variables
-contact_detection_window = np.zeros(
-    [contact_detection_window_length, contact_detection_nof_features])
+#contact_detection_window = np.zeros(
+#    [contact_detection_window_length, contact_detection_nof_features])
 classification_window = np.zeros(
     [window_classification_length, classification_model_input_size])
 model_output_msg = Floats()
 classification_counter = 0
 
+has_sensor_contact = 0
 
 def contact_predictions(data):
-    global contact_detection_window, publish_output, big_time_digits
+    #global contact_detection_window, publish_output, big_time_digits
     global classification_window, classification_counter
+    global has_sensor_contact
 
     start_time = rospy.get_time()
 
     e_q = np.array(data.q_d) - np.array(data.q)
     e_dq = np.array(data.dq_d) - np.array(data.dq)
     tau_J = np.array(data.tau_J)
-    tau_ext = np.multiply(np.array(data.tau_ext_hat_filtered), 0.5)
+    #tau_ext = np.multiply(np.array(data.tau_ext_hat_filtered), 0.5)
 
     # Data for contact detection
-    contact_detection_row = np.hstack((tau_J, tau_ext, e_q, e_dq))
-    contact_detection_row = contact_detection_row.reshape(
-        (1, contact_detection_nof_features))
-    contact_detection_window = np.append(
-        contact_detection_window[1:, :], contact_detection_row, axis=0)
-    lstmDataWindow = []
-    for j in range(contact_detection_dof):
-        column_index = [j, j + contact_detection_dof, j +
-                        contact_detection_dof * 2, j + contact_detection_dof * 3]
-        join_data_matrix = contact_detection_window[:, column_index]
-        lstmDataWindow.append(join_data_matrix.reshape(
-            (1, contact_detection_num_features_lstm * contact_detection_window_length)))
-    lstmDataWindow = np.vstack(lstmDataWindow)
+    #contact_detection_row = np.hstack((tau_J, tau_ext, e_q, e_dq))
+    #contact_detection_row = contact_detection_row.reshape(
+    #    (1, contact_detection_nof_features))
+    #contact_detection_window = np.append(
+    #    contact_detection_window[1:, :], contact_detection_row, axis=0)
+    #lstmDataWindow = []
+    #for j in range(contact_detection_dof):
+    #    column_index = [j, j + contact_detection_dof, j +
+    #                    contact_detection_dof * 2, j + contact_detection_dof * 3]
+    #    join_data_matrix = contact_detection_window[:, column_index]
+    #    lstmDataWindow.append(join_data_matrix.reshape(
+    #        (1, contact_detection_num_features_lstm * contact_detection_window_length)))
+    #lstmDataWindow = np.vstack(lstmDataWindow)
 
     # Data for classification (human/object detection)
     classification_row = np.concatenate([tau_J, e_q, e_dq])
@@ -152,17 +154,17 @@ def contact_predictions(data):
         classification_window[1:, :], classification_row, axis=0)
 
     # Run contact detection model
-    with torch.no_grad():
-        data_input = contact_detection_transform(
-            lstmDataWindow).to(device).float()
-        model_out = model_contact(data_input)
-        model_out = model_out.detach()
-        output = torch.argmax(model_out, dim=1)
+    #with torch.no_grad():
+    #    data_input = contact_detection_transform(
+    #        lstmDataWindow).to(device).float()
+    #    model_out = model_contact(data_input)
+    #    model_out = model_out.detach()
+    #    output = torch.argmax(model_out, dim=1)
 
     # Run classification model
-    contact = output.cpu().numpy()[0]
+    contact = -1 #output.cpu().numpy()[0]
     contact_object_prediction = -1
-    if contact == 1:
+    if has_sensor_contact == 1:
         # only do a classification every 3rd time a contact is detected (0, 1, 2)
         if classification_counter == 2:
             with torch.no_grad():
@@ -224,6 +226,10 @@ def move_robot(fa: FrankaArm, event: Event):
 
     print('fininshed .... !')
 
+def contact_time_index_callback(data):
+    global has_sensor_contact
+    has_sensor_contact = int(np.array(data.data)[4]) 
+
 
 if __name__ == "__main__":
     global publish_output, big_time_digits
@@ -235,6 +241,8 @@ if __name__ == "__main__":
     # subscribe robot data topic for contact detection module
     rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state",
                      data_class=RobotState, callback=contact_predictions)
+    rospy.Subscriber(name="/contactTimeIndex",
+                         data_class=numpy_msg(Floats), callback=contact_time_index_callback)
     model_pub = rospy.Publisher(
         "/model_output", numpy_msg(Floats), queue_size=1)
     move_robot(fa, event)
