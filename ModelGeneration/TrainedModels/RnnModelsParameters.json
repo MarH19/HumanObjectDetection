@@ -6563,7 +6563,7 @@
         "optimizer": "AdamW"
     },
     {
-        "model_name": "GRUModelWithLayerNorm_sliding_left_offset_norm_dropout",
+        "model_name": "GRUModelWithLayerNorm_sliding_left_offset_std_dropout",
         "modification_time": "2024-05-15 03:05:39",
         "hyperparameters": {
             "hidden_size": 32,

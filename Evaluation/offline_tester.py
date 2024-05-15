@@ -16,7 +16,7 @@ from _util.util import (choose_dataset, choose_model_type,
                         choose_trained_rnn_model,
                         choose_trained_transformer_model,
                         load_rnn_classification_model,
-                        load_transformer_classification_model)
+                        load_transformer_classification_model, normalize_window)
 from ModelGeneration.model_generation import choose_rnn_model_class
 
 classification_model_input_size = 21
@@ -61,7 +61,10 @@ X = X[:, :, feature_indices]
 encoder = LabelEncoder()
 y = encoder.fit_transform(y)
 
-# X_test_norm = normalize_window()
+# normalize
+for i, x_i in enumerate(X):
+    X[i] = normalize_window(x_i, rnn_model_params if model_type == "RNN" else transformer_config)
+
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 model_classification = model_classification.to(device)
@@ -71,7 +74,7 @@ if model_type == "Transformer":
     X_test_tensor = torch.tensor(np.swapaxes(
         X, 1, 2), dtype=torch.float32).to(device)
 else:
-    X_test_tensor = torch.tensor(X, dtype=torch.float32).to(device)
+    X_test_tensor = torch.tensor(X, dtype=torch.float32).to(device) 
 
 # Perform inference
 with torch.no_grad():
