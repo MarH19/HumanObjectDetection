@@ -117,12 +117,13 @@ classification_window = np.zeros(
 model_output_msg = Floats()
 classification_counter = 0
 
-has_sensor_contact = 0
+contact_timer = None
+has_contact = 0
 
 def contact_predictions(data):
     #global contact_detection_window, publish_output, big_time_digits
     global classification_window, classification_counter
-    global has_sensor_contact
+    global has_contact
 
     start_time = rospy.get_time()
 
@@ -164,7 +165,7 @@ def contact_predictions(data):
     # Run classification model
     contact = -1 #output.cpu().numpy()[0]
     contact_object_prediction = -1
-    if has_sensor_contact == 1:
+    if has_contact == 1:
         # only do a classification every 3rd time a contact is detected (0, 1, 2)
         if classification_counter == 2:
             with torch.no_grad():
@@ -226,9 +227,16 @@ def move_robot(fa: FrankaArm, event: Event):
 
     print('fininshed .... !')
 
-def contact_time_index_callback(data):
-    global has_sensor_contact
-    has_sensor_contact = int(np.array(data.data)[4]) 
+def contact_timer_callback(_):
+    global has_contact
+    has_contact = 0
+
+def contact_time_index_callback(_):
+    global contact_timer, has_contact
+    has_contact = 1
+    if contact_timer is not None:
+        contact_timer.shutdown()
+    contact_timer = rospy.Timer(rospy.Duration(0.005), contact_timer_callback)
 
 
 if __name__ == "__main__":

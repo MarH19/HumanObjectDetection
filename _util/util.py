@@ -15,7 +15,7 @@ def get_repo_root_path():
     return Path(__file__).parents[1]
 
 
-def user_input_choose_from_list(choices: list[Any], caption: str, list_item_label_selector: Optional[Callable[[Any], str]] = None):
+def user_input_choose_from_list(choices: "list[Any]", caption: str, list_item_label_selector: Optional[Callable[[Any], str]] = None):
     lines = [
         f'{i} {list_item_label_selector(v) if list_item_label_selector is not None else v}' for i, v in enumerate(choices)]
     print('\n' + '\n'.join(lines))
@@ -119,7 +119,7 @@ def choose_trained_transformer_model():
     return user_input_choose_from_list(trained_model_paths, "Trained Transformer models", lambda p: f"{p.parent.name}/{p.name}")
 
 
-def load_rnn_classification_model(model_class: type[RNNModel], params, input_size, output_size):
+def load_rnn_classification_model(model_class: "type[RNNModel]", params, input_size, output_size):
     model_name = params["model_name"]
     classification_path = get_repo_root_path() / "ModelGeneration" / \
         "TrainedModels" / f"{model_name}.pth"
