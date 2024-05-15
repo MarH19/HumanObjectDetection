@@ -35,19 +35,19 @@ if __name__ == '__main__':
               'val_ratio': 0.1,
               # choices={'T', 'C-T'}, help="Network Architecture. Convolution (C)" "Transformers (T)"
               'Net_Type': ['C-T'],
-              'emb_size': 8,
+              'emb_size': 16,
               'dim_ff': 256,
               'num_heads': 8,
               'Fix_pos_encode': 'tAPE',  # {'tAPE', 'Learn', 'None'}
               'Rel_pos_encode': 'eRPE',  # {'eRPE', 'Vector', 'None'}
-              'epochs': 200,
+              'epochs': 700,
               'batch_size': 512,
-              'lr': 1e-3,
-              'dropout': 0.3,
+              'lr': 1e-4,
+              'dropout': 0.2,
               'val_interval': 2,
               # {'loss', 'accuracy', 'precision'}, help='Metric used for defining best epoch'
               'key_metric': 'loss',
-              'l2reg': 0.01,
+              'l2reg': 0.2,
               'gpu': '0',
               'seed': 1234,
               'console': False  # "Optimize printout for console output; otherwise for file"

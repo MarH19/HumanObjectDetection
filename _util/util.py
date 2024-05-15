@@ -142,7 +142,7 @@ def load_transformer_classification_model(model_path: Path, input_size, output_s
     config['Data_shape'] = [
         1, input_size, window_length]
     model_classification = ConvTran(
-        config=config, num_classes=len(output_size))
+        config=config, num_classes=output_size)
     saved_params = torch.load(
         str(checkpoint_path.absolute()), map_location='cpu')
     model_classification.load_state_dict(saved_params["state_dict"])
