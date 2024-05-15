@@ -6528,17 +6528,6 @@
         ]
     },
     {
-        "model_name": "GRUModelWithLayerNorm_sliding_left_offset",
-        "modification_time": "2024-05-08 13:22:29",
-        "hyperparameters": {
-            "hidden_size": 64,
-            "num_layers": 3,
-            "epochs": 200,
-            "learning_rate": 0.001
-        },
-        "optimizer": "AdamW"
-    },
-    {
         "model_name": "LSTMModelWithLayerNorm_sliding_left_offset",
         "modification_time": "2024-05-08 15:21:59",
         "hyperparameters": {
@@ -6548,5 +6537,87 @@
             "learning_rate": 0.01
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModelWithLayerNorm_sliding_left_offset",
+        "modification_time": "2024-05-14 17:23:22",
+        "hyperparameters": {
+            "hidden_size": 128,
+            "num_layers": 1,
+            "epochs": 125,
+            "learning_rate": 0.01,
+            "dropout_rate": null
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModelWithLayerNorm_sliding_left_offset_dropout",
+        "modification_time": "2024-05-14 22:08:05",
+        "hyperparameters": {
+            "hidden_size": 128,
+            "num_layers": 4,
+            "epochs": 150,
+            "learning_rate": 0.001,
+            "dropout_rate": 0.2
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModelWithLayerNorm_sliding_left_offset_norm_dropout",
+        "modification_time": "2024-05-15 03:05:39",
+        "hyperparameters": {
+            "hidden_size": 32,
+            "num_layers": 4,
+            "epochs": 175,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW",
+        "normalization_mean": [
+            -2.78080055489132,
+            -9.92424041738588,
+            4.636437998838666,
+            21.55867724121297,
+            0.8699139804692281,
+            1.2123838872199013,
+            -0.16359053369371349,
+            -0.0011858088847902393,
+            -0.002623705435348279,
+            0.0029579089745839933,
+            0.0013370618194013654,
+            0.0005351806067210017,
+            -0.000806675825559404,
+            -0.00012525333334510396,
+            -0.01507750688315468,
+            -0.034556998199864,
+            0.010954083180217431,
+            0.009725221609153603,
+            0.021274936640507513,
+            -0.0034290343959892102,
+            0.000690161045415228
+        ],
+        "normalization_var": [
+            1770.3841051955476,
+            223.60496208644088,
+            1573.1550517184912,
+            162.94598561519874,
+            23.637014374183998,
+            7.611042452873728,
+            0.31537185734169804,
+            0.00024206569534812136,
+            1.9635611582543768e-05,
+            0.00022222693902176793,
+            3.16929684289486e-05,
+            8.229615652499684e-06,
+            2.278427277888614e-06,
+            5.719666623205087e-07,
+            0.03522397349033792,
+            0.0036120119254104293,
+            0.03485277280418156,
+            0.003497789620419534,
+            0.010340519236796327,
+            0.0007917085024352184,
+            0.00012220043195569253
+        ]
     }
 ]

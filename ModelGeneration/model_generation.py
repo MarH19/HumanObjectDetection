@@ -304,9 +304,9 @@ def choose_optimizer():
 
 def choose_dropout_mode():
     dropout_modes = [
-        {"key": 0, "caption": "NO Dropout"},
-        {"key": 1, "caption": "Dropout"}]
-    return user_input_choose_from_list(dropout_modes, "Dropout Mode", lambda m: m["caption"])
+        {"key": "", "caption": "NO Dropout"},
+        {"key": "D", "caption": "Dropout"}]
+    return user_input_choose_from_list(dropout_modes, "Dropout Mode", lambda m: m["caption"])["key"]
 
 
 if __name__ == '__main__':
@@ -357,14 +357,16 @@ if __name__ == '__main__':
 
     X_train, X_test, norm_mins, norm_maxes, norm_means, norm_vars, is_normalized = normalize_dataset(
         normalization_mode, X_train, X_test)
-    files_suffix = files_suffix + "_norm" if is_normalized else files_suffix
+    
+    files_suffix = files_suffix + "_norm" if normalization_mode == "N" else (files_suffix + "_std" if normalization_mode == "S" else files_suffix)
+    files_suffix = files_suffix + "_dropout" if dropout_mode == "D" else files_suffix
 
     rnn_model_trainer = RNNModelTrainer(
         device=device,
         model_class=model_class,
         hyperparameters=RNNModelHyperParameters(
             hidden_sizes=hidden_sizes, num_layers=num_layers, epochs=epochs,
-            learning_rates=learning_rates, dropout_rates=dropout_rates if dropout_mode == 1 else None,
+            learning_rates=learning_rates, dropout_rates=dropout_rates if dropout_mode == "D" else None,
             input_size=input_size, output_size=output_size),
         X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, optimizer=optimizer)
 

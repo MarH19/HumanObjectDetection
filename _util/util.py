@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Callable, Type
+from typing import Any, Callable, Optional, Type, Union
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
@@ -15,7 +15,7 @@ def get_repo_root_path():
     return Path(__file__).parents[1]
 
 
-def user_input_choose_from_list(choices: list[Any], caption: str, list_item_label_selector: Callable[[Any], str] | None = None):
+def user_input_choose_from_list(choices: list[Any], caption: str, list_item_label_selector: Optional[Callable[[Any], str]] = None):
     lines = [
         f'{i} {list_item_label_selector(v) if list_item_label_selector is not None else v}' for i, v in enumerate(choices)]
     print('\n' + '\n'.join(lines))
@@ -66,14 +66,14 @@ def choose_normalization_mode():
         {"key": "", "caption": "No Normalization"},
         {"key": "S", "caption": "Standardization (mean/variance)"},
         {"key": "N", "caption": "Normalization (min/max)"}]
-    return user_input_choose_from_list(normalization_modes, "Normalization Mode", lambda m: m["caption"])
+    return user_input_choose_from_list(normalization_modes, "Normalization Mode", lambda m: m["caption"])["key"]
 
 
 def normalize_dataset(normalization_mode, data_train, data_test):
     scaler = None
     norm_mins, norm_maxes, norm_means, norm_vars = None, None, None, None
 
-    def scale(scaler_type: type[StandardScaler | MinMaxScaler]):
+    def scale(scaler_type: type[Union[StandardScaler, MinMaxScaler]], data_train, data_test):
         scaler = scaler_type()
         N_train, S, D = data_train.shape
         N_test = data_test.shape[0]
@@ -81,13 +81,13 @@ def normalize_dataset(normalization_mode, data_train, data_test):
             data_train.reshape(N_train * S, D)).reshape(N_train, S, D)
         data_test = scaler.transform(data_test.reshape(
             N_test * S, D)).reshape(N_test, S, D)
-        return scaler
+        return scaler, data_train, data_test
 
     if normalization_mode == "S":
-        scaler = scale(StandardScaler)
+        scaler, data_train, data_test = scale(StandardScaler, data_train, data_test)
         norm_means, norm_vars = scaler.mean_.tolist(), scaler.var_.tolist()
     elif normalization_mode == "N":
-        scaler = scale(MinMaxScaler)
+        scaler, data_train, data_test = scale(MinMaxScaler, data_train, data_test)
         norm_mins, norm_maxes = scaler.data_min_.tolist(), scaler.data_max_.tolist()
 
     return data_train, data_test, norm_mins, norm_maxes, norm_means, norm_vars, normalization_mode in ["S", "N"]
