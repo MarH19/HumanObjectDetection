@@ -17,19 +17,18 @@ from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 
-from _util.util import choose_dataset, normalize_dataset, user_input_choose_from_list, choose_normalization_mode
+from _util.util import (choose_dataset, choose_normalization_mode,
+                        normalize_dataset, user_input_choose_from_list)
 from ModelGeneration.earlystopping import EarlyStopper
-from ModelGeneration.rnn_models import (GRUModel, GRUModelWithLayerNorm,
-                                        LSTMModel, LSTMModelWithLayerNorm,
-                                        RNNModel, RNNModelHyperParameters,
+from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel,
+                                        RNNModelHyperParameters,
                                         RNNModelHyperParameterSet)
 
 # ===========================================================================================================================================================
 # on MindLab PC, use the humanObjectDetectionEnv conda environment which has installed all the required dependencies (conda activate humanObjectDetectionEnv)
 # ===========================================================================================================================================================
 
-model_classes: "list[Type[RNNModel]]" = [LSTMModel,
-                                         LSTMModelWithLayerNorm, GRUModel, GRUModelWithLayerNorm]
+model_classes: "list[Type[RNNModel]]" = [LSTMModel, GRUModel]
 
 
 hidden_sizes = [16, 32, 64, 128]
@@ -357,8 +356,9 @@ if __name__ == '__main__':
 
     X_train, X_test, norm_mins, norm_maxes, norm_means, norm_vars, is_normalized = normalize_dataset(
         normalization_mode, X_train, X_test)
-    
-    files_suffix = files_suffix + "_norm" if normalization_mode == "N" else (files_suffix + "_std" if normalization_mode == "S" else files_suffix)
+
+    files_suffix = files_suffix + "_norm" if normalization_mode == "N" else (
+        files_suffix + "_std" if normalization_mode == "S" else files_suffix)
     files_suffix = files_suffix + "_dropout" if dropout_mode == "D" else files_suffix
 
     rnn_model_trainer = RNNModelTrainer(

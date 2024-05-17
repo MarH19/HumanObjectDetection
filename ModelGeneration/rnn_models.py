@@ -29,24 +29,13 @@ class RNNModelHyperParameters():
 
 
 class RNNModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None, layer_norm=None):
+    def __init__(self, input_size, hidden_size, output_size):
         super(RNNModel, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.num_layers = num_layers
         self.output_size = output_size
         self.fc = nn.Linear(hidden_size, output_size)
-        self.layer_norm = layer_norm
-        self.dropout = nn.Dropout(
-            dropout_rate) if dropout_rate is not None else None
-        self.rnn_layers = nn.ModuleList()
-
-    def forward(self, x):
-        for _, rnn_layer in enumerate(self.rnn_layers):
-            x, _ = rnn_layer(x, self.get_bias(x))
-            x = self.layer_norm(x) if self.layer_norm is not None else x
-            x = self.dropout(x) if self.dropout is not None else x
-        return self.fc(x[:, -1, :])
+        self.rnn_model = None
 
     def get_probabilities(self, logits):
         calc = nn.Sigmoid() if self.output_size == 1 else nn.Softmax(dim=1)
@@ -62,43 +51,29 @@ class RNNModel(nn.Module):
     def get_criterion(self):
         return nn.BCEWithLogitsLoss() if self.output_size == 1 else nn.CrossEntropyLoss()
 
-    def get_bias(self):
+    def forward(self, x):
         pass
 
 
 class LSTMModel(RNNModel):
-    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None, layer_norm=None):
-        super(LSTMModel, self).__init__(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
-                                        output_size=output_size, dropout_rate=dropout_rate, layer_norm=layer_norm)
-        for l in range(num_layers):
-            self.rnn_layers.append(
-                nn.LSTM(input_size if l == 0 else hidden_size, hidden_size, batch_first=True))
-
-    def get_bias(self, x):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None):
+        super(LSTMModel, self).__init__(input_size=input_size, hidden_size=hidden_size, output_size=output_size)
+        self.rnn_model = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, 
+                                 batch_first=True, dropout=dropout_rate if dropout_rate is not None else 0)
+        
+    def forward(self, x):
         h0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
         c0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
-        return (h0, c0)
-
-
-class LSTMModelWithLayerNorm(LSTMModel):
-    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None):
-        super(LSTMModelWithLayerNorm, self).__init__(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
-                                                     output_size=output_size, dropout_rate=dropout_rate, layer_norm=nn.LayerNorm(hidden_size))
-
+        output, _ = self.rnn_model(x, (h0, c0))
+        return self.fc(output[:, -1, :])
 
 class GRUModel(RNNModel):
-    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None, layer_norm=None):
-        super(GRUModel, self).__init__(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
-                                       output_size=output_size, dropout_rate=dropout_rate, layer_norm=layer_norm)
-        for l in range(num_layers):
-            self.rnn_layers.append(nn.GRU(
-                input_size if l == 0 else hidden_size, hidden_size, batch_first=True))
-
-    def get_bias(self, x):
-        return (torch.zeros(1, x.size(0), self.hidden_size).to(x.device))
-
-
-class GRUModelWithLayerNorm(GRUModel):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None):
-        super(GRUModelWithLayerNorm, self).__init__(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
-                                                    output_size=output_size, dropout_rate=dropout_rate, layer_norm=nn.LayerNorm(hidden_size))
+        super(GRUModel, self).__init__(input_size=input_size, hidden_size=hidden_size, output_size=output_size)
+        self.rnn_model = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, 
+                                batch_first=True, dropout=dropout_rate if dropout_rate is not None else 0)
+
+    def forward(self, x):
+        h0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
+        output, _ = self.rnn_model(x, h0)
+        return self.fc(output[:, -1, :])
