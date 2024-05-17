@@ -25,7 +25,11 @@ class RNNModelHyperParameters():
         self.best_hyperparameters = RNNModelHyperParameterSet()
 
     def get_hyperparameter_combinations(self) -> "list[RNNModelHyperParameterSet]":
-        return [RNNModelHyperParameterSet(h, n, e, l, d) for h in self.hidden_sizes for n in self.num_layers for e in self.epochs for l in self.learning_rates for d in (self.dropout_rates if self.dropout_rates is not None else [None])]
+        hyperparam_combinations = [RNNModelHyperParameterSet(h, n, e, l, d) for h in self.hidden_sizes
+                                   for n in self.num_layers for e in self.epochs for l in self.learning_rates
+                                   for d in (self.dropout_rates if self.dropout_rates is not None else [None])]
+        # LSTM / GRU with dropout_rate only makes sense if num_layers > 1 (otherwise warning is thrown in model training)
+        return [h for h in hyperparam_combinations if h.dropout_rate is None or h.num_layers > 1]
 
 
 class RNNModel(nn.Module):
@@ -57,20 +61,23 @@ class RNNModel(nn.Module):
 
 class LSTMModel(RNNModel):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None):
-        super(LSTMModel, self).__init__(input_size=input_size, hidden_size=hidden_size, output_size=output_size)
-        self.rnn_model = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, 
+        super(LSTMModel, self).__init__(input_size=input_size,
+                                        hidden_size=hidden_size, output_size=output_size)
+        self.rnn_model = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
                                  batch_first=True, dropout=dropout_rate if dropout_rate is not None else 0)
-        
+
     def forward(self, x):
         h0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
         c0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
         output, _ = self.rnn_model(x, (h0, c0))
         return self.fc(output[:, -1, :])
 
+
 class GRUModel(RNNModel):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None):
-        super(GRUModel, self).__init__(input_size=input_size, hidden_size=hidden_size, output_size=output_size)
-        self.rnn_model = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, 
+        super(GRUModel, self).__init__(input_size=input_size,
+                                       hidden_size=hidden_size, output_size=output_size)
+        self.rnn_model = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
                                 batch_first=True, dropout=dropout_rate if dropout_rate is not None else 0)
 
     def forward(self, x):
