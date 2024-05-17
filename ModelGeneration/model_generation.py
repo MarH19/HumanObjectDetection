@@ -337,6 +337,11 @@ if __name__ == '__main__':
     feature_indices = np.where(np.isin(dataset_targets, model_features))[0]
     X = X[:, :, feature_indices]
 
+    # Shuffle the dataset so that during cross validation and training, the same motion doesn't appear all at once in the same order
+    shuffle_indices = np.random.permutation(X.shape[0])
+    X = X[shuffle_indices]
+    y = y[shuffle_indices]
+
     encoder = LabelEncoder()
     if sub_repo != 'test_train_split':
         X_train, X_test, y_train, y_test = train_test_split(
