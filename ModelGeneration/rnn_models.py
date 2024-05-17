@@ -33,10 +33,11 @@ class RNNModelHyperParameters():
 
 
 class RNNModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
         super(RNNModel, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
+        self.num_layers = num_layers
         self.output_size = output_size
         self.fc = nn.Linear(hidden_size, output_size)
         self.rnn_model = None
@@ -62,12 +63,12 @@ class RNNModel(nn.Module):
 class LSTMModel(RNNModel):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None):
         super(LSTMModel, self).__init__(input_size=input_size,
-                                        hidden_size=hidden_size, output_size=output_size)
+                                        hidden_size=hidden_size, num_layers=num_layers, output_size=output_size)
         self.rnn_model = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
                                  batch_first=True, dropout=dropout_rate if dropout_rate is not None else 0)
 
     def forward(self, x):
-        h0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
+        h0 = torch.zeros(self.num, x.size(0), self.hidden_size).to(x.device)
         c0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
         output, _ = self.rnn_model(x, (h0, c0))
         return self.fc(output[:, -1, :])
@@ -76,11 +77,11 @@ class LSTMModel(RNNModel):
 class GRUModel(RNNModel):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout_rate=None):
         super(GRUModel, self).__init__(input_size=input_size,
-                                       hidden_size=hidden_size, output_size=output_size)
+                                       hidden_size=hidden_size, num_layers=num_layers, output_size=output_size)
         self.rnn_model = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
                                 batch_first=True, dropout=dropout_rate if dropout_rate is not None else 0)
 
     def forward(self, x):
-        h0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
         output, _ = self.rnn_model(x, h0)
         return self.fc(output[:, -1, :])
