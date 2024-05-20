@@ -317,9 +317,6 @@ if __name__ == '__main__':
     optimizer = choose_optimizer()
     dropout_mode = choose_dropout_mode()
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print('Using device:', device)
-
     X = np.load(str(X_file.absolute()))
     y = np.load(
         str((X_file.parent / X_file.name.replace("x_", "y_")).absolute()))
@@ -365,6 +362,12 @@ if __name__ == '__main__':
     files_suffix = files_suffix + "_norm" if normalization_mode == "N" else (
         files_suffix + "_std" if normalization_mode == "S" else files_suffix)
     files_suffix = files_suffix + "_dropout" if dropout_mode == "D" else files_suffix
+
+    custom_suffix = input("\nOptional file suffix (enter for \"\"): ")
+    files_suffix = files_suffix + custom_suffix 
+
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    print('\nUsing device:', device)
 
     rnn_model_trainer = RNNModelTrainer(
         device=device,

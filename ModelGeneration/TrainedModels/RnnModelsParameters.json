@@ -1,6 +1,6 @@
 [
     {
-        "model_name": "GRUModel_sliding_left_offset_dropout",
+        "model_name": "GRUModel_sliding_left_offset_dropout_unbalanced",
         "modification_time": "2024-05-17 16:12:27",
         "hyperparameters": {
             "hidden_size": 32,
@@ -8,6 +8,18 @@
             "epochs": 200,
             "learning_rate": 0.01,
             "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset_dropout",
+        "modification_time": "2024-05-20 15:14:08",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 2,
+            "epochs": 150,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.2
         },
         "optimizer": "AdamW"
     }
