@@ -24,7 +24,7 @@ logger = logging.getLogger('__main__')
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
-    sub_repo, xfile = choose_dataset()
+    _, xfile = choose_dataset()
     normalization_mode = choose_normalization_mode()
     yfile = (xfile.parent / xfile.name.replace("x_", "y_")).absolute()
     output_dir = Path(os.environ.get("TRANSFORMER_RESULT_PATH"))

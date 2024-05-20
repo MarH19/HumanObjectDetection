@@ -36,29 +36,15 @@ def choose_dataset():
     processed_data_path = Path(os.environ.get(
         "DATASET_REPO_ROOT_PATH")) / "processedData"
 
-    sub_repo = dict([(str(i), p) for i, p in enumerate(
-        processed_data_path.iterdir()) if p.is_dir()])
-    print("sub repo:")
-    lines = [f'{key} {value.name}' for key, value in sub_repo.items()]
-    print('\n'.join(lines) + '\n')
-    subrepo_key = None
-    while subrepo_key not in sub_repo:
-        subrepo_key = input(
-            "Which sub repo should be used? (choose by index): ")
+    subfolders = [str(p.name) for _, p in enumerate(processed_data_path.iterdir()) if p.is_dir()]
+    subfolder = user_input_choose_from_list(subfolders, "subfolders")
+    subfolder_path = processed_data_path / subfolder
 
-    full_path = processed_data_path / sub_repo[subrepo_key]
+    datasets = [str(p.name) for _, p in enumerate(subfolder_path.iterdir()) if p.is_file and p.name.startswith("x_") and p.suffix == ".npy"]
+    dataset = user_input_choose_from_list(datasets, "datasets")
+    dataset_path = subfolder_path / dataset
 
-    datasets = dict([(str(i), p) for i, p in enumerate(full_path.iterdir())
-                     if p.is_file and p.name.startswith("x_") and p.suffix == ".npy" and "test" not in p.name])
-    lines = [f'{key} {value.name}' for key, value in datasets.items()]
-
-    print("Datasets:")
-    print('\n'.join(lines) + '\n')
-    dataset_key = None
-    while dataset_key not in datasets:
-        dataset_key = input(
-            "Which dataset should be used? (choose by index): ")
-    return sub_repo[subrepo_key], datasets[dataset_key]
+    return subfolder_path, dataset_path
 
 
 def choose_normalization_mode():

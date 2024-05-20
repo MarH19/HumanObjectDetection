@@ -51,23 +51,17 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from std_msgs.msg import Float64
 
-from _util.util import choose_robot_motion
-
-contact_type_shorts = {"s": "soft", "h": "hard",
-                       "p": "plasticbottle", "t": "pvc_tube"}
+from _util.util import choose_robot_motion, user_input_choose_from_list
 
 # Set base path for saving data
-ROOT_PATH = Path('/home/mindlab/humanObjectDetectionDataset/rawData')
-# ROOT_PATH = Path("C:\\Users\\juhe9\\repos\\MasterProject\\humanObjectDetectionDataset\\rawData")
+subfolder = user_input_choose_from_list(choices=["rawData", "testData"], caption="subfolders")
+ROOT_PATH = Path(f"/home/mindlab/humanObjectDetectionDataset/{subfolder}")
 
 # Prompt the user to enter a tag name, the current robot motion and the contact type
 FOLDER_TAG = input('Enter tag name: ')
 
 used_robot_motion = choose_robot_motion()
-
-contact_type = input(
-    "Enter contact type (soft: s / hard: h / plasticbottle: p / pvc_tube: t): ")
-contact_type = contact_type_shorts[contact_type.lower()]
+contact_type = user_input_choose_from_list(choices=["soft", "hard", "pvc_tube"], caption="contact types")
 
 
 class LogData:

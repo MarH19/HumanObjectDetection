@@ -40,7 +40,7 @@ elif model_type == "Transformer":
         transformer_model_path, classification_model_input_size, len(labels_classification), window_classification_length)
 
 
-sub_repo, X_file = choose_dataset()
+_, X_file = choose_dataset()
 
 X = np.load(str(X_file.absolute()))
 y = np.load(str((X_file.parent / X_file.name.replace("x_", "y_")).absolute()))
