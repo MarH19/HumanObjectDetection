@@ -31,9 +31,9 @@ from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel,
 model_classes: "list[Type[RNNModel]]" = [LSTMModel, GRUModel]
 
 
-hidden_sizes = [16, 32, 64, 128]
-num_layers = [1, 2, 3, 4, 5]
-epochs = np.arange(100, 176, 25)
+hidden_sizes = [8, 12, 16, 24, 32, 40]
+num_layers = [1, 2, 3, 4]
+epochs = np.arange(100, 201, 50)
 learning_rates = [0.0001, 0.001, 0.01, 0.1]
 dropout_rates = [0.1, 0.2, 0.3, 0.4, 0.5]
 input_size = 21

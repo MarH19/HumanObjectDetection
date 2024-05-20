@@ -1,1 +1,14 @@
-[]
+[
+    {
+        "model_name": "GRUModel_sliding_left_offset_dropout",
+        "modification_time": "2024-05-17 16:12:27",
+        "hyperparameters": {
+            "hidden_size": 32,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
+    }
+]
