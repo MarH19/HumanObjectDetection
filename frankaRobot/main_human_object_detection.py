@@ -43,6 +43,7 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
+import signal
 from threading import Event
 
 import numpy as np
@@ -64,178 +65,167 @@ from _util.util import (choose_model_type, choose_robot_motion,
                         normalize_window)
 from ModelGeneration.model_generation import choose_rnn_model_class
 
-classification_model_input_size = 21
-window_classification_length = 40
-labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
 
+class HumanObjectDetectionNode:
+    def __init__(self):
+        rospy.init_node('human_object_detection_node', disable_signals=True)
+        self.shutdown_requested = Event()
 
-# choose trained model
-model_type = choose_model_type()
-model_classification, rnn_model_params, transformer_config = None, None, None
-if model_type == "RNN":
-    rnn_model_class = choose_rnn_model_class()
-    rnn_model_params = choose_trained_rnn_model(rnn_model_class)
-    model_classification = load_rnn_classification_model(
-        rnn_model_class, rnn_model_params, classification_model_input_size, len(labels_classification))
-elif model_type == "Transformer":
-    transformer_model_path = choose_trained_transformer_model()
-    model_classification, transformer_config = load_transformer_classification_model(
-        transformer_model_path, classification_model_input_size, len(labels_classification), window_classification_length)
+        self.classification_model_input_size = 21
+        self.window_classification_length = 40
+        self.labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
+        
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-robot_motion_path = choose_robot_motion()
-print()
+        self.model_type = choose_model_type()
+        self.model_classification, self.rnn_model_params, self.transformer_config = self.load_classification_model()
+        self.model_classification = self.model_classification.to(self.device)
+        self.model_classification.eval()
 
-# Define parameters for the contact detection / localization models
-contact_detection_num_features_lstm = 4
-contact_detection_window_length = 28
-contact_detection_nof_features = 28
-contact_detection_dof = 7
+        self.robot_motion_path = choose_robot_motion()
 
-# Set device for PyTorch models and select first GPU cuda:0
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.classification_window = np.zeros(
+            [self.window_classification_length, self.classification_model_input_size])
+        self.model_output_msg = Floats()
 
-# load contact detection model
-contact_detection_path = get_repo_root_path() / \
-    'AIModels' / 'trainedModels' / 'contactDetection' / \
-    'trainedModel_01_24_2024_11_18_01.pth'
-model_contact, labels_map_contact = import_lstm_models(
-    PATH=str(contact_detection_path.absolute()), num_features_lstm=contact_detection_num_features_lstm)
+        self.classification_counter = 0
+        self.has_contact = False
 
-# Move PyTorch models to the selected device
-model_contact = model_contact.to(device)
-model_classification = model_classification.to(device)
-model_classification.eval()
+        self.fa = FrankaArm(init_node=False)
+        self.scale = 1000000
+        self.big_time_digits = int(rospy.get_time() / self.scale) * self.scale
 
-# Define transformation for contact detection model input data
-contact_detection_transform = transforms.Compose([transforms.ToTensor()])
+        self.contact_timer = None
 
-# Initialize remaining variables
-contact_detection_window = np.zeros(
-    [contact_detection_window_length, contact_detection_nof_features])
-classification_window = np.zeros(
-    [window_classification_length, classification_model_input_size])
-model_output_msg = Floats()
-classification_counter = 0
+        rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state",
+                         data_class=RobotState, callback=self.contact_predictions)
+        rospy.Subscriber(name="/contactTimeIndex",
+                         data_class=numpy_msg(Floats), callback=self.contact_cb)
+        self.model_pub = rospy.Publisher(
+            "/model_output", numpy_msg(Floats), queue_size=1)
 
-def contact_predictions(data):
-    global contact_detection_window, publish_output, big_time_digits
-    global classification_window, classification_counter
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
 
-    start_time = rospy.get_time()
+    def signal_handler(self, signum, frame):
+        rospy.loginfo("Shutdown signal received.")
+        self.shutdown_requested.set()
+        rospy.signal_shutdown("Shutdown signal received")
 
-    e_q = np.array(data.q_d) - np.array(data.q)
-    e_dq = np.array(data.dq_d) - np.array(data.dq)
-    tau_J = np.array(data.tau_J)
-    tau_ext = np.multiply(np.array(data.tau_ext_hat_filtered), 0.5)
+    def load_classification_model(self):
+        if self.model_type == "RNN":
+            rnn_model_class = choose_rnn_model_class()
+            rnn_model_params = choose_trained_rnn_model(rnn_model_class)
+            model_classification = load_rnn_classification_model(
+                rnn_model_class, rnn_model_params, self.classification_model_input_size, len(self.labels_classification))
+            return model_classification, rnn_model_params, None
+        elif self.model_type == "Transformer":
+            transformer_model_path = choose_trained_transformer_model()
+            model_classification, transformer_config = load_transformer_classification_model(
+                transformer_model_path, self.classification_model_input_size, len(self.labels_classification), self.window_classification_length)
+            return model_classification, None, transformer_config    
+        
+    def contact_cb(self, _):
+        self.has_contact = True
+        self.restart_contact_timer()
 
-    # Data for contact detection
-    #contact_detection_row = np.hstack((tau_J, tau_ext, e_q, e_dq))
-    #contact_detection_row = contact_detection_row.reshape(
-    #    (1, contact_detection_nof_features))
-    #contact_detection_window = np.append(
-    #    contact_detection_window[1:, :], contact_detection_row, axis=0)
-    #lstmDataWindow = []
-    #for j in range(contact_detection_dof):
-    #    column_index = [j, j + contact_detection_dof, j +
-    #                    contact_detection_dof * 2, j + contact_detection_dof * 3]
-    #    join_data_matrix = contact_detection_window[:, column_index]
-    #    lstmDataWindow.append(join_data_matrix.reshape(
-    #        (1, contact_detection_num_features_lstm * contact_detection_window_length)))
-    #lstmDataWindow = np.vstack(lstmDataWindow)
+    def contact_timer_callback(self, event):
+        rospy.loginfo("Timer callback triggered, set has_contact = False")
+        self.has_contact = False
+        self.contact_timer.shutdown()
 
-    # Data for classification (human/object detection)
-    classification_row = np.concatenate([tau_J, e_q, e_dq])
-    classification_row = classification_row.reshape(
-        (1, classification_model_input_size))
-    classification_window = np.append(
-        classification_window[1:, :], classification_row, axis=0)
+    def restart_contact_timer(self):
+        if self.contact_timer is not None:
+            self.contact_timer.shutdown()
+        self.contact_timer = rospy.Timer(rospy.Duration(0.0025), self.contact_timer_callback)
 
-    # Run contact detection model
-    #with torch.no_grad():
-    #    data_input = contact_detection_transform(
-    #        lstmDataWindow).to(device).float()
-    #    model_out = model_contact(data_input)
-    #    model_out = model_out.detach()
-    #    output = torch.argmax(model_out, dim=1)
+    def contact_predictions(self, data):
+        if self.shutdown_requested.is_set():
+            return
 
-    ## Run classification model
-    contact = -1
-    #contact = output.cpu().numpy()[0]
-    contact_object_prediction = -1
-    #if contact == 1:
-    # only do a classification every 3rd time a contact is detected (0, 1, 2)
-    if classification_counter == 2:
-        with torch.no_grad():
-            # normalize data if normalization was done during model training
-            #classification_window = normalize_window(
-            #    classification_window, rnn_model_params if model_type == "RNN" else transformer_config)
-            if model_type == "RNN":
-                classification_tensor = torch.tensor(
-                    classification_window, dtype=torch.float32).unsqueeze(0).to(device)
-                model_out = model_classification(classification_tensor)
-                contact_object_prediction = model_classification.get_predictions(
-                    model_out)
-            elif model_type == "Transformer":
-                classification_tensor = torch.tensor(
-                    np.swapaxes(classification_window, 0, 1), dtype=torch.float32).unsqueeze(0).to(device)
-                model_out = model_classification(classification_tensor)
-                contact_object_prediction = torch.argmax(
-                    torch.nn.functional.softmax(model_out, dim=1), dim=1).cpu().numpy()
-    # increment / reset classification counter
-    classification_counter = (classification_counter + 1) % 3
-    #else:
-    #    # reset classification counter if no contact -> classification model runs only
-    #    classification_counter = 0
+        start_time = rospy.get_time()
 
-    all_models_prediction_duration = rospy.get_time() - start_time
-    if contact_object_prediction != -1:
-        rospy.loginfo(
-            f'all modelsprediction duration: {all_models_prediction_duration}, classification prediction: {labels_classification[int(contact_object_prediction)]}')
+        e_q = np.array(data.q_d) - np.array(data.q)
+        e_dq = np.array(data.dq_d) - np.array(data.dq)
+        tau_J = np.array(data.tau_J)
 
-    start_time = np.array(start_time).tolist()
-    time_sec = int(start_time)
-    time_nsec = start_time - time_sec
-    model_output_msg.data = np.array([time_sec - big_time_digits, time_nsec,
-                                      all_models_prediction_duration, contact, contact_object_prediction], dtype=np.complex128)
-    model_pub.publish(model_output_msg)
+        # Data for classification (human/object detection)
+        classification_row = np.concatenate([tau_J, e_q, e_dq])
+        classification_row = classification_row.reshape(
+            (1, self.classification_model_input_size))
+        self.classification_window = np.append(
+            self.classification_window[1:, :], classification_row, axis=0)
+        
+        if self.has_contact == False:
+            self.classification_counter = 0
+            return
 
+        if self.classification_counter == 2:
+            with torch.no_grad():
+                if self.model_type == "RNN":
+                    classification_tensor = torch.tensor(
+                        self.classification_window, dtype=torch.float32).unsqueeze(0).to(self.device)
+                    model_out = self.model_classification(classification_tensor)
+                    contact_object_prediction = self.model_classification.get_predictions(
+                        model_out)
+                elif self.model_type == "Transformer":
+                    classification_tensor = torch.tensor(
+                        np.swapaxes(self.classification_window, 0, 1), dtype=torch.float32).unsqueeze(0).to(self.device)
+                    model_out = self.model_classification(classification_tensor)
+                    contact_object_prediction = torch.argmax(
+                        torch.nn.functional.softmax(model_out, dim=1), dim=1).cpu().numpy()
+                    
+            prediction_duration = rospy.get_time() - start_time
+            rospy.loginfo(
+                f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(contact_object_prediction)]}')
 
-def move_robot(fa: FrankaArm, event: Event):
+            start_time = np.array(start_time).tolist()
+            time_sec = int(start_time)
+            time_nsec = start_time - time_sec
+            self.model_output_msg.data = np.array([time_sec - self.big_time_digits, time_nsec,
+                                                   prediction_duration, 1, contact_object_prediction], dtype=np.complex128)
+            self.model_pub.publish(self.model_output_msg)
+        
+        self.classification_counter = (self.classification_counter + 1) % 3        
 
-    joints = pd.read_csv(str(robot_motion_path.absolute()))
+    def move_robot(self):
+        joints = pd.read_csv(str(self.robot_motion_path.absolute()))
 
-    # preprocessing
-    joints = joints.iloc[:, 1:8]
-    joints.iloc[:, 6] -= np.deg2rad(45)
-    print(joints.head(5), '\n\n')
-    fa.goto_joints(np.array(joints.iloc[0]), ignore_virtual_walls=True)
-    fa.goto_gripper(0.02)
+        # preprocessing
+        joints = joints.iloc[:, 1:8]
+        joints.iloc[:, 6] -= np.deg2rad(45)
+        self.fa.goto_joints(np.array(joints.iloc[0]), ignore_virtual_walls=True)
+        self.fa.goto_gripper(0.02)
 
-    while True:
+        while not self.shutdown_requested.is_set():
+            try:
+                for i in range(joints.shape[0]):
+                    if self.shutdown_requested.is_set():
+                        break
+                    self.fa.goto_joints(
+                        np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.5)
+            except Exception as e:
+                rospy.logerr(e)
+                break
+
+    def run(self):
         try:
-            for i in range(joints.shape[0]):
-                fa.goto_joints(
-                    np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.5)
-                # time.sleep(0.01)
+            rospy.loginfo("Human Object Detection Node started.")
+            self.move_robot()
+            rospy.spin()
+        except rospy.ROSInterruptException:
+            pass
+        finally:
+            self.shutdown()
 
-        except Exception as e:
-            print(e)
-            event.set()
-            break
-
-    print('fininshed .... !')
+    def shutdown(self):
+        rospy.loginfo("Shutting down Human Object Detection Node...")
+        self.shutdown_requested.set()
+        if self.contact_timer is not None:
+            self.contact_timer.shutdown()
+        rospy.loginfo("Shutdown complete.")
 
 
 if __name__ == "__main__":
-    global publish_output, big_time_digits
-    event = Event()
-    # create robot controller instance
-    fa = FrankaArm()
-    scale = 1000000
-    big_time_digits = int(rospy.get_time() / scale) * scale
-    # subscribe robot data topic for contact detection module
-    rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state",
-                     data_class=RobotState, callback=contact_predictions)
-    model_pub = rospy.Publisher(
-        "/model_output", numpy_msg(Floats), queue_size=1)
-    move_robot(fa, event)
+    node = HumanObjectDetectionNode()
+    node.run()
