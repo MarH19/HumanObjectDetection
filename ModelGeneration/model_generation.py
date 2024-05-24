@@ -156,7 +156,7 @@ class RNNModelTrainer():
         model = model.to(self.device)
         model.train()
 
-        stopper = EarlyStopper()
+        stopper = EarlyStopper(patience=20, min_delta=0.05)
 
         X_train_tensor = torch.tensor(
             self.X_train, dtype=torch.float32).to(self.device)
@@ -176,13 +176,16 @@ class RNNModelTrainer():
             optimizer = optim.Adam(
                 model.parameters(), lr=self.hyperparameters.best_hyperparameters.learning_rate)
 
+        model_params_path = get_model_params_path(
+            model_prefix=self.model_class.__name__, file_suffix=file_suffix)
+
         loss_values = []
         # Train the model
         for epoch in range(self.hyperparameters.best_hyperparameters.epochs):
             optimizer.zero_grad()
             outputs = model(X_train_tensor)
             loss = criterion(outputs, y_train_tensor)
-            if stopper.early_stop(loss.item()):
+            if stopper.early_stop(loss.item(), model, model_params_path):
                 self.hyperparameters.best_hyperparameters.epochs = epoch
                 break
             loss_values.append(loss.item())
@@ -192,8 +195,6 @@ class RNNModelTrainer():
             print(
                 f'Epoch [{epoch+1}/{self.hyperparameters.best_hyperparameters.epochs}], Loss: {loss.item():.4f}')
 
-        torch.save(model.state_dict(), get_model_params_path(
-            model_prefix=self.model_class.__name__, file_suffix=file_suffix))
         plot_model_training_loss(
             self.hyperparameters.best_hyperparameters.epochs, loss_values, self.model_class, file_suffix)
 
@@ -364,7 +365,7 @@ if __name__ == '__main__':
     files_suffix = files_suffix + "_dropout" if dropout_mode == "D" else files_suffix
 
     custom_suffix = input("\nOptional file suffix (enter for \"\"): ")
-    files_suffix = files_suffix + custom_suffix 
+    files_suffix = files_suffix + custom_suffix
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('\nUsing device:', device)
