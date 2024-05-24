@@ -156,7 +156,7 @@ class RNNModelTrainer():
         model = model.to(self.device)
         model.train()
 
-        stopper = EarlyStopper(patience=20, min_delta=0.05)
+        stopper = EarlyStopper(max_epochs=self.hyperparameters.best_hyperparameters.epochs, patience=15, min_delta=0.015)
 
         X_train_tensor = torch.tensor(
             self.X_train, dtype=torch.float32).to(self.device)
@@ -186,9 +186,9 @@ class RNNModelTrainer():
             optimizer.zero_grad()
             outputs = model(X_train_tensor)
             loss = criterion(outputs, y_train_tensor)
-            if stopper.early_stop(loss.item(), model, model_params_path):
+            if stopper.early_stop(loss.item(), model, model_params_path, epoch):
                 self.hyperparameters.best_hyperparameters.epochs = epoch
-                early_stopping_epoch = epoch
+                early_stopping_epoch = epoch - stopper.patience
                 break
             loss_values.append(loss.item())
             loss.backward()
