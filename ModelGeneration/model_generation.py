@@ -180,6 +180,7 @@ class RNNModelTrainer():
             model_prefix=self.model_class.__name__, file_suffix=file_suffix)
 
         loss_values = []
+        early_stopping_epoch = None
         # Train the model
         for epoch in range(self.hyperparameters.best_hyperparameters.epochs):
             optimizer.zero_grad()
@@ -187,6 +188,7 @@ class RNNModelTrainer():
             loss = criterion(outputs, y_train_tensor)
             if stopper.early_stop(loss.item(), model, model_params_path):
                 self.hyperparameters.best_hyperparameters.epochs = epoch
+                early_stopping_epoch = epoch
                 break
             loss_values.append(loss.item())
             loss.backward()
@@ -195,8 +197,8 @@ class RNNModelTrainer():
             print(
                 f'Epoch [{epoch+1}/{self.hyperparameters.best_hyperparameters.epochs}], Loss: {loss.item():.4f}')
 
-        plot_model_training_loss(
-            self.hyperparameters.best_hyperparameters.epochs, loss_values, self.model_class, file_suffix)
+        plot_model_training_loss(len(
+            loss_values), loss_values, self.model_class, file_suffix, early_stopping_epoch)
 
     def evaluate_model(self, file_suffix):
         # Load the trained model
@@ -242,8 +244,10 @@ class RNNModelTrainer():
             print("unable to create confusion matrix due to test set expected labels not matching expected label count")
 
 
-def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], file_suffix):
+def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], file_suffix, early_stopping_epoch=None):
     plt.plot(list(range(1, epochs + 1)), loss_values, label='Training loss')
+    if early_stopping_epoch is not None:
+        plt.axvline(x=early_stopping_epoch, color='red', linestyle='--')
     plt.title(f'Training loss over epochs for {file_suffix}')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
