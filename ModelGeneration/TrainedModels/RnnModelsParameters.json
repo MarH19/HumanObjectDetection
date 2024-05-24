@@ -22,5 +22,17 @@
             "dropout_rate": 0.2
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset_dropout",
+        "modification_time": "2024-05-20 16:59:52",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.4
+        },
+        "optimizer": "AdamW"
     }
 ]
