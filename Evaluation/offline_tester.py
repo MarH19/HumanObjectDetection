@@ -59,11 +59,12 @@ feature_indices = np.where(np.isin(dataset_targets, model_features))[0]
 X = X[:, :, feature_indices]
 
 encoder = LabelEncoder()
-y = encoder.fit_transform(y)
+y[:, 0] = encoder.fit_transform(y[:, 0])
 
 # normalize
 for i, x_i in enumerate(X):
-    X[i] = normalize_window(x_i, rnn_model_params if model_type == "RNN" else transformer_config)
+    X[i] = normalize_window(
+        x_i, rnn_model_params if model_type == "RNN" else transformer_config)
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -74,7 +75,7 @@ if model_type == "Transformer":
     X_test_tensor = torch.tensor(np.swapaxes(
         X, 1, 2), dtype=torch.float32).to(device)
 else:
-    X_test_tensor = torch.tensor(X, dtype=torch.float32).to(device) 
+    X_test_tensor = torch.tensor(X, dtype=torch.float32).to(device)
 
 # Perform inference
 with torch.no_grad():
@@ -86,12 +87,30 @@ with torch.no_grad():
         predictions = model_classification.get_predictions(outputs)
 
 
-# Calculate accuracy
-accuracy = np.mean(predictions == y)
-print(f'Test Accuracy: {accuracy:.4f}')
+# Calculate accuracies
+accuracies = [
+    {"caption": "Overall", "indices": np.arange(len(y)), "accuracy": 0},
+    {"caption": f"First ~100ms of contact (window left offset <= {20 - window_classification_length})", "indices": np.where(
+        y[:, 2].astype(int) <= 20 - window_classification_length)[0], "accuracy": 0},
+    {"caption": f"First ~200ms of contact (window left offset <= {40-window_classification_length})", "indices": np.where(
+        y[:, 2].astype(int) <= 40 - window_classification_length)[0], "accuracy": 0},
+    {"caption": f"AFTER ~50ms of contact (window left offset >= {10-window_classification_length})", "indices": np.where(
+        y[:, 2].astype(int) >= 10 - window_classification_length)[0], "accuracy": 0},
+    {"caption": f"AFTER ~100ms of contact (window left offset >= {20-window_classification_length})", "indices": np.where(
+        y[:, 2].astype(int) >= 20 - window_classification_length)[0], "accuracy": 0}
+]
+
+print(f"\nWith window size {window_classification_length}")
+for accuracy in accuracies:
+    accuracy["accuracy"] = np.mean(
+        predictions[accuracy["indices"]] == y[accuracy["indices"], 0].astype(int))
+    print(
+        f'Test Accuracy for {accuracy["caption"]}: {accuracy["accuracy"]:.4f}')
 
 # Generate confusion matrix
-confusion_mat = confusion_matrix(y, predictions)
+highest_accuracy_item = max(accuracies, key=lambda x: x["accuracy"])
+confusion_mat = confusion_matrix(y[highest_accuracy_item["indices"], 0].astype(
+    int), predictions[highest_accuracy_item["indices"]])
 
 # Define class labels based on output type
 class_labels = ['hard', 'pvc_tube', 'soft']
@@ -102,6 +121,7 @@ try:
         confusion_matrix=confusion_mat, display_labels=class_labels)
     disp.plot(include_values=True, cmap='Blues',
               ax=None, xticks_rotation='horizontal')
+    plt.title(f'predictions {highest_accuracy_item["caption"]}')
     plt.show()
 except:
     print("unable to create confusion matrix due to test set expected labels not matching expected label count")

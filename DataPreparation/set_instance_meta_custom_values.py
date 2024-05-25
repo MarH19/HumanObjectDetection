@@ -1,7 +1,13 @@
 import json
 import os
+import sys
 from pathlib import Path
-from dotenv import load_dotenv, find_dotenv
+
+from dotenv import find_dotenv, load_dotenv
+
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
+from _util.util import user_input_choose_from_list
 
 load_dotenv(find_dotenv())
 
@@ -16,7 +22,11 @@ def isfloat(num):
 
 # DATASET_REPO_ROOT_PATH=<absolute-path-to-dataset-repo-root-folder>
 dataset_repo_root_path = Path(os.environ.get("DATASET_REPO_ROOT_PATH"))
-dataset_path = dataset_repo_root_path / "rawData"
+
+subfolder = user_input_choose_from_list([p.name for p in dataset_repo_root_path.iterdir(
+) if p.is_dir() and not p.name == "_ignore" and not p.name == "processedData" and not p.name.startswith(".")], "subfolders")
+dataset_path = dataset_repo_root_path / subfolder
+
 instance_paths = dict([(str(i), p)
                        for i, p in enumerate(dataset_path.iterdir()) if p.is_dir() and not p.name == "_ignore"])
 
