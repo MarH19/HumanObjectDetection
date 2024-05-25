@@ -10,8 +10,8 @@ class EarlyStopper:
         self.min_validation_loss = float('inf')
 
     def early_stop(self, validation_loss, model, model_params_path, epoch):
-        if epoch < int((2 / 3) * self.max_epochs):
-            return False
+        #if epoch < int((2 / 3) * self.max_epochs):
+        #    return False
         
         if validation_loss < self.min_validation_loss:
             self.counter = 0

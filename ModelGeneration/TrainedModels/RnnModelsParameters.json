@@ -58,5 +58,53 @@
             "dropout_rate": 0.2
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset25ms_dropout25ms",
+        "modification_time": "2024-05-25 10:34:43",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset25ms_dropout25msclip",
+        "modification_time": "2024-05-25 10:34:43",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset50ms_dropout50ms",
+        "modification_time": "2024-05-25 12:10:09",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.4
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset75ms_dropout75ms",
+        "modification_time": "2024-05-25 14:19:35",
+        "hyperparameters": {
+            "hidden_size": 48,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.2
+        },
+        "optimizer": "AdamW"
     }
 ]

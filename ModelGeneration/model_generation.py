@@ -31,7 +31,7 @@ from ModelGeneration.rnn_models import (GRUModel, LSTMModel, RNNModel,
 model_classes: "list[Type[RNNModel]]" = [LSTMModel, GRUModel]
 
 
-hidden_sizes = [8, 12, 16, 24, 32, 40]
+hidden_sizes = [12, 16, 24, 32, 40, 48]
 num_layers = [1, 2, 3, 4]
 epochs = np.arange(100, 201, 50)
 learning_rates = [0.0001, 0.001, 0.01, 0.1]
@@ -156,7 +156,7 @@ class RNNModelTrainer():
         model = model.to(self.device)
         model.train()
 
-        stopper = EarlyStopper(max_epochs=self.hyperparameters.best_hyperparameters.epochs, patience=15, min_delta=0.015)
+        stopper = EarlyStopper(max_epochs=self.hyperparameters.best_hyperparameters.epochs, patience=10, min_delta=0.015)
 
         X_train_tensor = torch.tensor(
             self.X_train, dtype=torch.float32).to(self.device)
@@ -192,6 +192,7 @@ class RNNModelTrainer():
                 break
             loss_values.append(loss.item())
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(),1)
             optimizer.step()
 
             print(
