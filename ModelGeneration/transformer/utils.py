@@ -85,7 +85,7 @@ class myDataLoader(torch.utils.data.Dataset):
 
         # Split data into train/test sets
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-            self.X, self.y, test_size=test_size, random_state=random_state)
+            self.X, self.y, test_size=test_size, random_state=random_state,stratify=self.y)
         self.X_train, self.X_test, norm_mins, norm_maxes, norm_means, norm_vars, is_normalized = normalize_dataset(
             normalization_mode, self.X_train, self.X_test)
         
@@ -109,7 +109,7 @@ class myDataLoader(torch.utils.data.Dataset):
         # Further split train data into train/val sets
         if val_size > 0:
             self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
-                self.X_train, self.y_train, test_size=val_size, random_state=random_state)
+                self.X_train, self.y_train, test_size=val_size, random_state=random_state,stratify=self.y_train)
         else:
             self.X_val = None
             self.y_val = None
