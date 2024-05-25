@@ -68,8 +68,8 @@ class LSTMModel(RNNModel):
                                  batch_first=True, dropout=dropout_rate if dropout_rate is not None else 0)
 
     def forward(self, x):
-        h0 = torch.zeros(self.num, x.size(0), self.hidden_size).to(x.device)
-        c0 = torch.zeros(1, x.size(0), self.hidden_size).to(x.device)
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
         output, _ = self.rnn_model(x, (h0, c0))
         return self.fc(output[:, -1, :])
 

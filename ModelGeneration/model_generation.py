@@ -156,7 +156,7 @@ class RNNModelTrainer():
         model = model.to(self.device)
         model.train()
 
-        stopper = EarlyStopper()
+        stopper = EarlyStopper(max_epochs=self.hyperparameters.best_hyperparameters.epochs, patience=15, min_delta=0.015)
 
         X_train_tensor = torch.tensor(
             self.X_train, dtype=torch.float32).to(self.device)
@@ -176,14 +176,19 @@ class RNNModelTrainer():
             optimizer = optim.Adam(
                 model.parameters(), lr=self.hyperparameters.best_hyperparameters.learning_rate)
 
+        model_params_path = get_model_params_path(
+            model_prefix=self.model_class.__name__, file_suffix=file_suffix)
+
         loss_values = []
+        early_stopping_epoch = None
         # Train the model
         for epoch in range(self.hyperparameters.best_hyperparameters.epochs):
             optimizer.zero_grad()
             outputs = model(X_train_tensor)
             loss = criterion(outputs, y_train_tensor)
-            if stopper.early_stop(loss.item()):
+            if stopper.early_stop(loss.item(), model, model_params_path, epoch):
                 self.hyperparameters.best_hyperparameters.epochs = epoch
+                early_stopping_epoch = epoch - stopper.patience
                 break
             loss_values.append(loss.item())
             loss.backward()
@@ -192,10 +197,8 @@ class RNNModelTrainer():
             print(
                 f'Epoch [{epoch+1}/{self.hyperparameters.best_hyperparameters.epochs}], Loss: {loss.item():.4f}')
 
-        torch.save(model.state_dict(), get_model_params_path(
-            model_prefix=self.model_class.__name__, file_suffix=file_suffix))
-        plot_model_training_loss(
-            self.hyperparameters.best_hyperparameters.epochs, loss_values, self.model_class, file_suffix)
+        plot_model_training_loss(len(
+            loss_values), loss_values, self.model_class, file_suffix, early_stopping_epoch)
 
     def evaluate_model(self, file_suffix):
         # Load the trained model
@@ -241,8 +244,10 @@ class RNNModelTrainer():
             print("unable to create confusion matrix due to test set expected labels not matching expected label count")
 
 
-def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], file_suffix):
+def plot_model_training_loss(epochs, loss_values, model_class: Type[RNNModel], file_suffix, early_stopping_epoch=None):
     plt.plot(list(range(1, epochs + 1)), loss_values, label='Training loss')
+    if early_stopping_epoch is not None:
+        plt.axvline(x=early_stopping_epoch, color='red', linestyle='--')
     plt.title(f'Training loss over epochs for {file_suffix}')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
@@ -364,7 +369,7 @@ if __name__ == '__main__':
     files_suffix = files_suffix + "_dropout" if dropout_mode == "D" else files_suffix
 
     custom_suffix = input("\nOptional file suffix (enter for \"\"): ")
-    files_suffix = files_suffix + custom_suffix 
+    files_suffix = files_suffix + custom_suffix
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('\nUsing device:', device)
