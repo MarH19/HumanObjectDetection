@@ -16,7 +16,9 @@ from _util.util import (choose_dataset, choose_model_type,
                         choose_trained_rnn_model,
                         choose_trained_transformer_model,
                         load_rnn_classification_model,
-                        load_transformer_classification_model, normalize_window)
+                        load_transformer_classification_model,
+                        normalize_window)
+from ModelGeneration.SoftVotingClassifier import SoftVotingClassifier
 from ModelGeneration.model_generation import choose_rnn_model_class
 
 classification_model_input_size = 21
@@ -77,36 +79,54 @@ if model_type == "Transformer":
 else:
     X_test_tensor = torch.tensor(X, dtype=torch.float32).to(device)
 
-# Perform inference
-with torch.no_grad():
-    outputs = model_classification(X_test_tensor)
-    if model_type == "Transformer":
-        predictions = torch.argmax(torch.nn.functional.softmax(
-            outputs, dim=1), dim=1).cpu().numpy()
-    else:
-        predictions = model_classification.get_predictions(outputs)
+# initialize soft voting classifier
+softvoting_window_lengths = [8, 10, 12, 15]
+soft_voting_classifiers = [SoftVotingClassifier(
+    model_classification, swl) for swl in softvoting_window_lengths]
 
+# group X data by contact to simulate individual contact predictions for soft voting
+unique_inst_contact_ids = np.unique(y[:, 1])
+X_grouped_by_contact = [X_test_tensor[y[:, 1] == i]
+                        for i in unique_inst_contact_ids]
+y_by_contact = np.array([int(y[y[:, 1] == i][0][0])
+                        for i in unique_inst_contact_ids])
 
-# Calculate accuracies
-accuracies = [
-    {"caption": "Overall", "indices": np.arange(len(y)), "accuracy": 0},
-    {"caption": f"First ~100ms of contact (window left offset <= {20 - window_classification_length})", "indices": np.where(
-        y[:, 2].astype(int) <= 20 - window_classification_length)[0], "accuracy": 0},
-    {"caption": f"First ~200ms of contact (window left offset <= {40-window_classification_length})", "indices": np.where(
-        y[:, 2].astype(int) <= 40 - window_classification_length)[0], "accuracy": 0},
-    {"caption": f"AFTER ~50ms of contact (window left offset >= {10-window_classification_length})", "indices": np.where(
-        y[:, 2].astype(int) >= 10 - window_classification_length)[0], "accuracy": 0},
-    {"caption": f"AFTER ~100ms of contact (window left offset >= {20-window_classification_length})", "indices": np.where(
-        y[:, 2].astype(int) >= 20 - window_classification_length)[0], "accuracy": 0}
-]
+# Perform inference with soft voting (majority vote)
+soft_voting_predictions = [[] for _ in range(len(softvoting_window_lengths))]
+for i, soft_voter in enumerate(soft_voting_classifiers):
+    for X_contact_tensor in X_grouped_by_contact:
+        contact_predictions = []
+        for X_window_at_timestep in X_contact_tensor.unsqueeze(1):
+            contact_predictions.append(
+                soft_voter.predict(X_window_at_timestep))
+        soft_voting_predictions[i].append(contact_predictions)
+        soft_voter.reset()
+
+# assert that for each soft voting prediction per contact, only the prediction at the given soft voting window length index is not None
+# assert that for each soft voting prediction per contact, the prediction at the given soft voting window length index is a proper class label
+for i, predictions in enumerate(soft_voting_predictions):
+    for j, contact_predictions in enumerate(predictions):
+        assert all(value is None for k, value in enumerate(
+            contact_predictions) if k != softvoting_window_lengths[i] - 1), f"soft voting with window length {softvoting_window_lengths[i]} made a prediction at a timestep other than the window length index"
+        assert contact_predictions[softvoting_window_lengths[i] - 1] in [
+            0, 1, 2], f"soft voting with window length {softvoting_window_lengths[i]} made a prediction that is not a proper class label"
+
+        # replace array of soft voting predictions with the prediction at the given window length index -> the one actual prediction of the soft voting classifier
+        soft_voting_predictions[i][j] = [
+            p for p in contact_predictions if p is not None][0]
+
+soft_voting_predictions = np.array(soft_voting_predictions)
+
+# Calculate accuracies for all soft voting classifiers
+accuracies = [{"caption": f"soft voting classifier that evaluates first {swl} predictions per contact", "accuracy": np.mean(
+    soft_voting_predictions[i] == y_by_contact)} for i, swl in enumerate(softvoting_window_lengths)]
 
 print(f"\nWith window size {window_classification_length}")
 for accuracy in accuracies:
-    accuracy["accuracy"] = np.mean(
-        predictions[accuracy["indices"]] == y[accuracy["indices"], 0].astype(int))
     print(
         f'Test Accuracy for {accuracy["caption"]}: {accuracy["accuracy"]:.4f}')
 
+sys.exit()
 # Generate confusion matrix
 highest_accuracy_item = max(accuracies, key=lambda x: x["accuracy"])
 confusion_mat = confusion_matrix(y[highest_accuracy_item["indices"], 0].astype(
