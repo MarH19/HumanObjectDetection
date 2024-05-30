@@ -45,8 +45,18 @@ elif model_type == "Transformer":
 
 _, X_file = choose_dataset()
 
+prediction_step_size = input(
+    "prediction step size (predict at every n-th timestep): ")
+prediction_step_size = int(prediction_step_size)
+
 X = np.load(str(X_file.absolute()))
 y = np.load(str((X_file.parent / X_file.name.replace("x_", "y_")).absolute()))
+
+# filter out data points based on prediction step size: only keep data for every n-th timestep, so offline test simulates predicting at every n-th timestep
+timestep_mask = (y[:, 2].astype(int) +
+                 window_classification_length) % prediction_step_size == 0
+y = y[timestep_mask]
+X = X[timestep_mask]
 
 # filter X features to fit model
 target_torque = ['tau_J0', 'tau_J1', 'tau_J2',
@@ -137,12 +147,13 @@ soft_voting_predictions = np.array(soft_voting_predictions)
 hard_voting_predictions = np.array(hard_voting_predictions)
 
 # Calculate accuracies for all majority voting classifiers
-accuracies_soft = [{"caption": f"soft voting classifier that evaluates first {swl} predictions per contact", "accuracy": np.mean(
-    soft_voting_predictions[i] == y_by_contact)} for i, swl in enumerate(majority_voting_window_lengths)]
-accuracies_hard = [{"caption": f"hard voting classifier that evaluates first {swl} predictions per contact", "accuracy": np.mean(
-    hard_voting_predictions[i] == y_by_contact)} for i, swl in enumerate(majority_voting_window_lengths)]
+accuracies_soft = [{"caption": f"soft voting classifier that evaluates first {l} predictions (~{l*5*prediction_step_size}ms w/ step size {prediction_step_size}) per contact",
+                    "accuracy": np.mean(soft_voting_predictions[i] == y_by_contact)} for i, l in enumerate(majority_voting_window_lengths)]
+accuracies_hard = [{"caption": f"hard voting classifier that evaluates first {l} predictions (~{l*5*prediction_step_size}ms w/ step size {prediction_step_size}) per contact",
+                    "accuracy": np.mean(hard_voting_predictions[i] == y_by_contact)} for i, l in enumerate(majority_voting_window_lengths)]
 
-print(f"\nWith window size {window_classification_length}")
+print(
+    f"\nWindow size: {window_classification_length}, Prediction step size: {prediction_step_size}")
 print("\nSoft Voting:")
 for accuracy in accuracies_soft:
     print(
@@ -194,10 +205,10 @@ axs_hard = axs_hard.flatten()
 # display confusion matrices using same max value for each to normalize color scale
 for i, cm in enumerate(confusion_matrices_soft):
     display_confusion_matrix(cm, axs_soft[i], confusion_matrices_max_val_soft,
-                             f'soft voter with {majority_voting_window_lengths[i]} predictions per contact')
+                             f'soft voting: first {majority_voting_window_lengths[i]} predictions per contact\nprediction step size: {prediction_step_size}')
 
 for i, cm in enumerate(confusion_matrices_hard):
     display_confusion_matrix(cm, axs_hard[i], confusion_matrices_max_val_hard,
-                             f'hard voter with {majority_voting_window_lengths[i]} predictions per contact')
+                             f'hard voting: first {majority_voting_window_lengths[i]} predictions per contact\nprediction step size: {prediction_step_size}')
 
 plt.show()
