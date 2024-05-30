@@ -1,7 +1,11 @@
+from abc import ABC, abstractmethod
+
+import numpy as np
 import torch
 
 
-class SoftVotingClassifier:
+class MajorityVotingClassifier(ABC):
+
     def __init__(self, model, window_size=10):
         self.model = model
         self.window_size = window_size
@@ -12,13 +16,10 @@ class SoftVotingClassifier:
         if len(self.probability_window) > self.window_size:
             self.probability_window.pop(0)
 
-    def soft_voting(self):
+    def majority_voting(self):
         if not self.probability_window or len(self.probability_window) < self.window_size:
             return None
-        average_probabilities = torch.mean(
-            torch.stack(self.probability_window), dim=0)
-        final_prediction = torch.argmax(average_probabilities).item()
-        return final_prediction
+        return self.do_majority_voting()
 
     def predict(self, data):
         # don't append data and predict if window is  full
@@ -34,7 +35,35 @@ class SoftVotingClassifier:
         # don't predict if window is not full
         if len(self.probability_window) < self.window_size:
             return None
-        return self.soft_voting()
+        return self.majority_voting()
 
     def reset(self):
         self.probability_window = []
+
+    @abstractmethod
+    def do_majority_voting(self):
+        pass
+
+
+class SoftVotingClassifier(MajorityVotingClassifier):
+
+    def __init__(self, model, window_size=10):
+        super().__init__(model, window_size)
+
+    def do_majority_voting(self):
+        average_probabilities = torch.mean(
+            torch.stack(self.probability_window), dim=0)
+        final_prediction = torch.argmax(average_probabilities).item()
+        return final_prediction
+
+
+class HardVotingClassifier(MajorityVotingClassifier):
+
+    def __init__(self, model, window_size=10):
+        super().__init__(model, window_size)
+
+    def do_majority_voting(self):
+        predictions = [torch.argmax(probabilities, dim=1).item()
+                       for probabilities in self.probability_window]
+        final_prediction = np.bincount(predictions).argmax()
+        return final_prediction
