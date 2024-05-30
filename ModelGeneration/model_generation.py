@@ -348,7 +348,7 @@ if __name__ == '__main__':
     encoder = LabelEncoder()
     if sub_repo != 'test_train_split':
         X_train, X_test, y_train, y_test = train_test_split(
-            X, encoder.fit_transform(y), test_size=0.1)
+            X, encoder.fit_transform(y), test_size=0.1, stratify=y)
         files_suffix = X_file.name.replace("x_", "").replace(".npy", "")
     else:
         X_train = X
