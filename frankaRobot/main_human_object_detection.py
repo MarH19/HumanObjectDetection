@@ -45,6 +45,7 @@ sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 import signal
 from threading import Event
+from typing import Type
 
 import numpy as np
 import pandas as pd
@@ -62,7 +63,10 @@ from _util.util import (choose_model_type, choose_robot_motion,
                         choose_trained_transformer_model, get_repo_root_path,
                         load_rnn_classification_model,
                         load_transformer_classification_model,
-                        normalize_window)
+                        normalize_window, user_input_choose_from_list)
+from ModelGeneration.majority_voting import (HardVotingClassifier,
+                                             MajorityVotingClassifier,
+                                             SoftVotingClassifier)
 from ModelGeneration.model_generation import choose_rnn_model_class
 
 
@@ -74,13 +78,19 @@ class HumanObjectDetectionNode:
         self.classification_model_input_size = 21
         self.window_classification_length = 40
         self.labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
-        
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+        self.device = torch.device(
+            'cuda:0' if torch.cuda.is_available() else 'cpu')
 
         self.model_type = choose_model_type()
         self.model_classification, self.rnn_model_params, self.transformer_config = self.load_classification_model()
         self.model_classification = self.model_classification.to(self.device)
         self.model_classification.eval()
+
+        majority_voting_classifier_class = user_input_choose_from_list(
+            [HardVotingClassifier, SoftVotingClassifier], "Majority voting classifier", lambda v: v.__name__)
+        self.majority_voting_classifier = majority_voting_classifier_class(
+            model=self.model_classification, number_of_predictions=12)
 
         self.robot_motion_path = choose_robot_motion()
 
@@ -123,21 +133,24 @@ class HumanObjectDetectionNode:
             transformer_model_path = choose_trained_transformer_model()
             model_classification, transformer_config = load_transformer_classification_model(
                 transformer_model_path, self.classification_model_input_size, len(self.labels_classification), self.window_classification_length)
-            return model_classification, None, transformer_config    
-        
+            return model_classification, None, transformer_config
+
     def contact_cb(self, _):
         self.has_contact = True
         self.restart_contact_timer()
 
     def contact_timer_callback(self, event):
-        rospy.loginfo("Timer callback triggered, set has_contact = False")
+        rospy.loginfo(
+            "Timer callback triggered, set has_contact = False and reset majority voting classifier")
         self.has_contact = False
+        self.majority_voting_classifier.reset()
         self.contact_timer.shutdown()
 
     def restart_contact_timer(self):
         if self.contact_timer is not None:
             self.contact_timer.shutdown()
-        self.contact_timer = rospy.Timer(rospy.Duration(0.0025), self.contact_timer_callback)
+        self.contact_timer = rospy.Timer(
+            rospy.Duration(0.0025), self.contact_timer_callback)
 
     def contact_predictions(self, data):
         if self.shutdown_requested.is_set():
@@ -155,38 +168,39 @@ class HumanObjectDetectionNode:
             (1, self.classification_model_input_size))
         self.classification_window = np.append(
             self.classification_window[1:, :], classification_row, axis=0)
-        
+
         if self.has_contact == False:
             self.classification_counter = 0
             return
 
-        if self.classification_counter == 2:
-            with torch.no_grad():
-                if self.model_type == "RNN":
-                    classification_tensor = torch.tensor(
-                        self.classification_window, dtype=torch.float32).unsqueeze(0).to(self.device)
-                    model_out = self.model_classification(classification_tensor)
-                    contact_object_prediction = self.model_classification.get_predictions(
-                        model_out)
-                elif self.model_type == "Transformer":
-                    classification_tensor = torch.tensor(
-                        np.swapaxes(self.classification_window, 0, 1), dtype=torch.float32).unsqueeze(0).to(self.device)
-                    model_out = self.model_classification(classification_tensor)
-                    contact_object_prediction = torch.argmax(
-                        torch.nn.functional.softmax(model_out, dim=1), dim=1).cpu().numpy()
-                    
-            prediction_duration = rospy.get_time() - start_time
-            rospy.loginfo(
-                f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(contact_object_prediction)]}')
+        # make classification prediction every 3rd time (classification_counter = 0, 1, 2)
+        # only make predictions if majority voting classifier has not predicted yet (for this contact)
+        if self.classification_counter == 2 and self.majority_voting_classifier.get_has_predicted() == False:
+            if self.model_type == "RNN":
+                classification_tensor = torch.tensor(
+                    self.classification_window, dtype=torch.float32).unsqueeze(0).to(self.device)
+            elif self.model_type == "Transformer":
+                classification_tensor = torch.tensor(
+                    np.swapaxes(self.classification_window, 0, 1), dtype=torch.float32).unsqueeze(0).to(self.device)
 
-            start_time = np.array(start_time).tolist()
-            time_sec = int(start_time)
-            time_nsec = start_time - time_sec
-            self.model_output_msg.data = np.array([time_sec - self.big_time_digits, time_nsec,
-                                                   prediction_duration, 1, contact_object_prediction], dtype=np.complex128)
-            self.model_pub.publish(self.model_output_msg)
-        
-        self.classification_counter = (self.classification_counter + 1) % 3        
+            # majority voting: only returns prediction != None if this is the specified n-th prediction per contact
+            majority_voting_prediction = self.majority_voting_classifier.predict(
+                classification_tensor)
+
+            # publish prediction if majority voting classifier has predicted
+            if majority_voting_prediction is not None:
+                prediction_duration = rospy.get_time() - start_time
+                rospy.loginfo(
+                    f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(majority_voting_prediction)]}')
+
+                start_time = np.array(start_time).tolist()
+                time_sec = int(start_time)
+                time_nsec = start_time - time_sec
+                self.model_output_msg.data = np.array([time_sec - self.big_time_digits, time_nsec,
+                                                       prediction_duration, 1, majority_voting_prediction], dtype=np.complex128)
+                self.model_pub.publish(self.model_output_msg)
+
+        self.classification_counter = (self.classification_counter + 1) % 3
 
     def move_robot(self):
         joints = pd.read_csv(str(self.robot_motion_path.absolute()))
@@ -194,7 +208,8 @@ class HumanObjectDetectionNode:
         # preprocessing
         joints = joints.iloc[:, 1:8]
         joints.iloc[:, 6] -= np.deg2rad(45)
-        self.fa.goto_joints(np.array(joints.iloc[0]), ignore_virtual_walls=True)
+        self.fa.goto_joints(
+            np.array(joints.iloc[0]), ignore_virtual_walls=True)
         self.fa.goto_gripper(0.02)
 
         while not self.shutdown_requested.is_set():
