@@ -60,7 +60,7 @@
         "optimizer": "AdamW"
     },
     {
-        "model_name": "GRUModel_sliding_left_offset25ms_dropout25ms",
+        "model_name": "GRUModel_sliding_left_offset25ms_dropout",
         "modification_time": "2024-05-25 10:34:43",
         "hyperparameters": {
             "hidden_size": 40,
@@ -72,7 +72,7 @@
         "optimizer": "AdamW"
     },
     {
-        "model_name": "GRUModel_sliding_left_offset25ms_dropout25msclip",
+        "model_name": "GRUModel_sliding_left_offset25ms_dropout_clip",
         "modification_time": "2024-05-25 10:34:43",
         "hyperparameters": {
             "hidden_size": 40,
@@ -84,7 +84,7 @@
         "optimizer": "AdamW"
     },
     {
-        "model_name": "GRUModel_sliding_left_offset50ms_dropout50ms",
+        "model_name": "GRUModel_sliding_left_offset50ms_dropout",
         "modification_time": "2024-05-25 12:10:09",
         "hyperparameters": {
             "hidden_size": 40,
@@ -96,7 +96,7 @@
         "optimizer": "AdamW"
     },
     {
-        "model_name": "GRUModel_sliding_left_offset75ms_dropout75ms",
+        "model_name": "GRUModel_sliding_left_offset75ms_dropout",
         "modification_time": "2024-05-25 14:19:35",
         "hyperparameters": {
             "hidden_size": 48,
