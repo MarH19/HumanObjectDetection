@@ -46,7 +46,7 @@ elif model_type == "Transformer":
 _, X_file = choose_dataset()
 
 prediction_step_size = input(
-    "prediction step size (predict at every n-th timestep): ")
+    "\nprediction step size (predict at n-th timestep): ")
 prediction_step_size = int(prediction_step_size)
 
 X = np.load(str(X_file.absolute()))
@@ -90,12 +90,6 @@ if model_type == "Transformer":
 else:
     X_test_tensor = torch.tensor(X, dtype=torch.float32).to(device)
 
-# initialize majority voting classifier
-majority_voting_window_lengths = [8, 10, 12, 15]
-soft_voting_classifiers = [SoftVotingClassifier(
-    model_classification, l) for l in majority_voting_window_lengths]
-hard_voting_classifiers = [HardVotingClassifier(
-    model_classification, l) for l in majority_voting_window_lengths]
 
 # group X data by contact to simulate individual contact predictions for majority voting
 unique_inst_contact_ids = np.unique(y[:, 1])
@@ -103,6 +97,20 @@ X_grouped_by_contact = [X_test_tensor[y[:, 1] == i]
                         for i in unique_inst_contact_ids]
 y_by_contact = np.array([int(y[y[:, 1] == i][0][0])
                         for i in unique_inst_contact_ids])
+
+# initialize majority voting classifiers
+# only include classifiers with majority window length <= available time steps in data
+majority_voting_window_lengths = [8, 10, 12, 15]
+
+min_steps = min([X_contact_tensor.shape[0]
+                for X_contact_tensor in X_grouped_by_contact])
+majority_voting_window_lengths = [
+    l for l in majority_voting_window_lengths if l <= min_steps]
+
+soft_voting_classifiers = [SoftVotingClassifier(
+    model_classification, l) for l in majority_voting_window_lengths]
+hard_voting_classifiers = [HardVotingClassifier(
+    model_classification, l) for l in majority_voting_window_lengths]
 
 # Perform inference with majority voting classifiers
 soft_voting_predictions = [[]

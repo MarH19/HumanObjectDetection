@@ -32,9 +32,10 @@ def choose_robot_motion():
     return user_input_choose_from_list(robot_motions, "Robot Motions", lambda m: m.name)
 
 
-def choose_dataset():
-    processed_data_path = Path(os.environ.get(
-        "DATASET_REPO_ROOT_PATH")) / "processedData"
+def choose_dataset(subdir=None):
+    processed_data_path = Path(os.environ.get("DATASET_REPO_ROOT_PATH"))
+    processed_data_path = processed_data_path / subdir if subdir is not None else processed_data_path
+    processed_data_path = processed_data_path / "processedData"
 
     subfolders = [str(p.name) for _, p in enumerate(processed_data_path.iterdir()) if p.is_dir()]
     subfolder = user_input_choose_from_list(subfolders, "subfolders")
