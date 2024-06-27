@@ -1,1 +1,8 @@
 /frankaRobot/DATA/
+venv/
+dataExploration/dataset/
+dataset/
+build/
+__pycache__/
+commit_push.sh
+.env

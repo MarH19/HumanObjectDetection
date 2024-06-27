@@ -1,0 +1,245 @@
+import numpy as np
+import torch
+import sys
+import builtins
+import os
+import json
+from datetime import datetime
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from copy import deepcopy
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+
+from _util.util import normalize_dataset
+
+
+def Initialization(config):
+    if config['seed'] is not None:
+        torch.manual_seed(config['seed'])
+    device = torch.device('cuda' if (
+        torch.cuda.is_available() and config['gpu'] != '-1') else 'cpu')
+    logger.info("Using device: {}".format(device))
+    if device == 'cuda':
+        logger.info("Device index: {}".format(torch.cuda.current_device()))
+    return device
+
+
+def Setup(config):
+    """
+        Input:
+            args: arguments object from argparse
+        Returns:
+            config: configuration dictionary
+    """
+    # Create output directory
+    initial_timestamp = datetime.now()
+    output_dir = str(config['output_dir'])
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+    model = str(config['xfile']).split("\\")[-1]
+    model = model[2:-4]
+    output_dir = os.path.join(
+        output_dir, model, initial_timestamp.strftime("%Y-%m-%d_%H-%M"))
+    config['output_dir'] = output_dir
+    config['save_dir'] = os.path.join(output_dir, 'checkpoints')
+    create_dirs([config['save_dir']])
+    config['xfile'] = str(config['xfile'])
+    config['yfile'] = str(config['yfile'])
+    # Save configuration as a (pretty) json file
+    with open(os.path.join(output_dir, 'configuration.json'), 'w') as fp:
+        json.dump(config, fp, indent=4, sort_keys=True)
+
+    return config
+
+
+def create_dirs(dirs):
+    """
+    Input:
+        dirs: a list of directories to create, in case these directories are not found
+    Returns:
+        exit_code: 0 if success, -1 if failure
+    """
+    try:
+        for dir_ in dirs:
+            if not os.path.exists(dir_):
+                os.makedirs(dir_)
+        return 0
+    except Exception as err:
+        print("Creating directories error: {0}".format(err))
+        exit(-1)
+
+
+class myDataLoader(torch.utils.data.Dataset):
+    def __init__(self, X_path, y_path, output, test_size=0.2, val_size=0.1, random_state=42, normalization_mode=""):
+        self.X = np.load(X_path)
+        self.y = np.load(y_path)
+        torque_indices = np.arange(0, 7, 1)
+        position_error_indices = np.arange(28, 35, 1)
+        velocity_error_indices = np.arange(35, 42, 1)
+        selection = np.concatenate(
+            (torque_indices, position_error_indices, velocity_error_indices))
+        self.X = self.X[:, :, selection]
+        label_encoder = LabelEncoder()
+        self.y = label_encoder.fit_transform(self.y)
+        
+
+        # Split data into train/test sets
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+            self.X, self.y, test_size=test_size, random_state=random_state,stratify=self.y)
+        self.X_train, self.X_test, norm_mins, norm_maxes, norm_means, norm_vars, is_normalized = normalize_dataset(
+            normalization_mode, self.X_train, self.X_test)
+        
+        # swap axes such that #samples, #features #winwdowlength
+        self.X_train = np.swapaxes(self.X_train, 1, 2)
+        self.X_test = np.swapaxes(self.X_test,1,2)
+        if is_normalized:
+            norm_data = {}
+            if (norm_maxes is not None and norm_mins is not None):
+                norm_data['normalization_max'] = norm_maxes
+                norm_data['normalization_min'] = norm_mins
+            elif (norm_means is not None and norm_vars is not None):
+                norm_data['normalization_mean'] = norm_means
+                norm_data['normalization_var'] = norm_vars
+            with open(os.path.join(output, 'configuration.json'), 'r') as f:
+                config = json.load(f)
+            config.update(norm_data)
+            with open(os.path.join(output, 'configuration.json'), 'w') as f:
+                json.dump(config, f)
+
+        # Further split train data into train/val sets
+        if val_size > 0:
+            self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
+                self.X_train, self.y_train, test_size=val_size, random_state=random_state,stratify=self.y_train)
+        else:
+            self.X_val = None
+            self.y_val = None
+
+    def __len__(self):
+        # Depending on usage, return length of appropriate data
+        if hasattr(self, 'X_train'):
+            return len(self.X_train)
+        elif hasattr(self, 'X_val'):
+            return len(self.X_val)  # Access validation data length
+        else:
+            return len(self.X_test)
+
+    def __getitem__(self, idx):
+        if hasattr(self, 'X_train'):  # Access training data
+            return torch.tensor(self.X_train[idx], dtype=torch.float32), torch.tensor(self.y_train[idx], dtype=torch.long), idx
+        elif hasattr(self, 'X_val'):  # Access validation data
+            return torch.tensor(self.X_val[idx], dtype=torch.float32), torch.tensor(self.y_val[idx], dtype=torch.long), idx
+        else:  # Access test data
+            return torch.tensor(self.X_test[idx], dtype=torch.float32), torch.tensor(self.y_test[idx], dtype=torch.long), idx
+
+
+class Printer(object):
+    """Class for printing output by refreshing the same line in the console, e.g. for indicating progress of a process"""
+
+    def __init__(self, console=True):
+
+        if console:
+            self.print = self.dyn_print
+        else:
+            self.print = builtins.print
+
+    @staticmethod
+    def dyn_print(data):
+        """Print things to stdout on one line, refreshing it dynamically"""
+        sys.stdout.write("\r\x1b[K" + data.__str__())
+        sys.stdout.flush()
+
+
+def readable_time(time_difference):
+    """Convert a float measuring time difference in seconds into a tuple of (hours, minutes, seconds)"""
+
+    hours = time_difference // 3600
+    minutes = (time_difference // 60) % 60
+    seconds = time_difference % 60
+
+    return hours, minutes, seconds
+
+
+import logging
+logging.basicConfig(
+    format='%(asctime)s | %(levelname)s : %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+# plt.style.use('ggplot')
+
+
+def timer(func):
+    """Print the runtime of the decorated function"""
+    @functools.wraps(func)
+    def wrapper_timer(*args, **kwargs):
+        start_time = time.perf_counter()    # 1
+        value = func(*args, **kwargs)
+        end_time = time.perf_counter()      # 2
+        run_time = end_time - start_time    # 3
+        print(f"Finished {func.__name__!r} in {run_time} secs")
+        return value
+    return wrapper_timer
+
+
+def save_model(path, epoch, model, optimizer=None):
+    if isinstance(model, torch.nn.DataParallel):
+        state_dict = model.module.state_dict()
+    else:
+        state_dict = model.state_dict()
+    data = {'epoch': epoch,
+            'state_dict': state_dict}
+    if not (optimizer is None):
+        data['optimizer'] = optimizer.state_dict()
+    torch.save(data, path)
+
+
+class SaveBestModel:
+    """
+    Class to save the best model while training. If the current epoch's
+    validation loss is less than the previous least less, then save the
+    model state.
+    """
+
+    def __init__(self, best_valid_loss=float('inf')):
+        self.best_valid_loss = best_valid_loss
+
+    def __call__(self, current_valid_loss, epoch, model, optimizer, criterion, path):
+
+        if current_valid_loss < self.best_valid_loss:
+
+            self.best_valid_loss = current_valid_loss
+            print(f"Best validation loss: {self.best_valid_loss}")
+            print(f"Saving best model for epoch: {epoch}\n")
+            save_model(path, epoch, model, optimizer)
+
+
+def load_model(model, model_path, optimizer=None, resume=False, change_output=False,
+               lr=None, lr_step=None, lr_factor=None):
+
+    checkpoint = torch.load(
+        model_path, map_location=lambda storage, loc: storage)
+    state_dict = deepcopy(checkpoint['state_dict'])
+    if change_output:
+        for key, val in checkpoint['state_dict'].items():
+            if key.startswith('output_layer'):
+                state_dict.pop(key)
+    model.load_state_dict(state_dict, strict=False)
+    print('Loaded model from {}. Epoch: {}'.format(
+        model_path, checkpoint['epoch']))
+    start_epoch = checkpoint['epoch']
+    # resume optimizer parameters
+    if optimizer is not None and resume:
+        if 'optimizer' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            start_epoch = checkpoint['epoch']
+            start_lr = lr
+            for i in range(len(lr_step)):
+                if start_epoch >= lr_step[i]:
+                    start_lr *= lr_factor[i]
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = start_lr
+            print('Resumed optimizer with start lr', start_lr)
+        else:
+            print('No optimizer parameters in checkpoint.')
+    if optimizer is not None:
+        return model, optimizer, start_epoch
+    else:
+        return model
