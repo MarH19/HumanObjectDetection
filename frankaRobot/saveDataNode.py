@@ -62,7 +62,7 @@ FOLDER_TAG = input('Enter tag name: ')
 
 used_robot_motion = choose_robot_motion()
 contact_type = user_input_choose_from_list(choices=["soft", "hard", "pvc_tube"], caption="contact types")
-
+dynamic = input("Is the contact dynamic? (y/n): ").lower() == 'y'
 
 class LogData:
     def __init__(self) -> None:
@@ -93,6 +93,7 @@ class LogData:
         meta_data = {
             "date": datetime.now().strftime('%Y-%m-%d'),
             "contact_type": contact_type,
+            "dynamic": dynamic,
             "start_from_time": -1,
             "motion_filename": used_robot_motion.name,
             "reference_duration_multiplier_lower": None,
