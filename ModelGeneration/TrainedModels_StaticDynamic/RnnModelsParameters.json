@@ -1,0 +1,26 @@
+[
+    {
+        "model_name": "GRUModel_sliding_left_offset100ms_step4_SOFTSTATIC_dropout",
+        "modification_time": "2024-07-10 10:14:03",
+        "hyperparameters": {
+            "hidden_size": 150,
+            "num_layers": 2,
+            "epochs": 150,
+            "learning_rate": 0.1,
+            "dropout_rate": 0.2
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset100ms_step4_dropout",
+        "modification_time": "2024-07-10 10:31:20",
+        "hyperparameters": {
+            "hidden_size": 16,
+            "num_layers": 2,
+            "epochs": 150,
+            "learning_rate": 0.1,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
+    }
+]
