@@ -25,7 +25,7 @@ By Maryam Rezayati
 		source /opt/ros/noetic/setup.bash
 		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_human_object_detection.py
+		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/main_static_dynamic.py
 
 
 5. run save data node
@@ -63,20 +63,23 @@ from _util.util import (choose_model_type, choose_robot_motion,
                         choose_trained_transformer_model, get_repo_root_path,
                         load_rnn_classification_model,
                         load_transformer_classification_model,
-                        normalize_window, user_input_choose_from_list)
+                        user_input_choose_from_list)
 from ModelGeneration.majority_voting import (HardVotingClassifier,
+                                             MajorityVotingClassifier,
                                              SoftVotingClassifier)
 from ModelGeneration.model_generation import choose_rnn_model_class
 
 
+MAJORITY_VOTING_NUMBER_OF_PREDICTIONS=12
+
 class HumanObjectDetectionNode:
     def __init__(self):
-        rospy.init_node('human_object_detection_node', disable_signals=True)
+        rospy.init_node('static_dynamic_node', disable_signals=True)
         self.shutdown_requested = Event()
 
         self.classification_model_input_size = 21
         self.window_classification_length = 40
-        self.labels_classification = {0: "hard", 1: "pvc_tube", 2: "soft"}
+        self.labels_classification = {0: "static", 1: "dynamic"}
 
         self.device = torch.device(
             'cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -89,7 +92,7 @@ class HumanObjectDetectionNode:
         majority_voting_classifier_class = user_input_choose_from_list(
             [HardVotingClassifier, SoftVotingClassifier], "Majority voting classifier", lambda v: v.__name__)
         self.majority_voting_classifier = majority_voting_classifier_class(
-            model=self.model_classification, nof_individual_predictions=12, output_size=3)
+            model=self.model_classification, nof_individual_predictions=MAJORITY_VOTING_NUMBER_OF_PREDICTIONS, output_size=1)
 
         self.robot_motion_path = choose_robot_motion()
 
@@ -124,9 +127,10 @@ class HumanObjectDetectionNode:
     def load_classification_model(self):
         if self.model_type == "RNN":
             rnn_model_class = choose_rnn_model_class()
-            rnn_model_params = choose_trained_rnn_model(rnn_model_class)
+            rnn_model_params = choose_trained_rnn_model(rnn_model_class,  get_repo_root_path() / "ModelGeneration" / "TrainedModels_StaticDynamic")
             model_classification = load_rnn_classification_model(
-                rnn_model_class, rnn_model_params, self.classification_model_input_size, len(self.labels_classification))
+                rnn_model_class, rnn_model_params, self.classification_model_input_size, 1,
+                get_repo_root_path() / "ModelGeneration" / "TrainedModels_StaticDynamic")
             return model_classification, rnn_model_params, None
         elif self.model_type == "Transformer":
             transformer_model_path = choose_trained_transformer_model()
@@ -190,7 +194,7 @@ class HumanObjectDetectionNode:
             if majority_voting_prediction is not None:
                 prediction_duration = rospy.get_time() - start_time
                 rospy.loginfo(
-                    f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(majority_voting_prediction)]}')
+                    f'prediction duration: {prediction_duration}, static/dynamic prediction: {self.labels_classification[int(majority_voting_prediction)]}')
 
                 start_time = np.array(start_time).tolist()
                 time_sec = int(start_time)

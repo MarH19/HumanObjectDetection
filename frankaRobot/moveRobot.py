@@ -71,7 +71,7 @@ def move_robot(fa: FrankaArm, event: Event, motion_csv):
         try:
             for i in range(joints.shape[0]):
                 fa.goto_joints(
-                    np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.5)
+                    np.array(joints.iloc[i]), ignore_virtual_walls=True, duration=1.25)
                 # time.sleep(0.01)
             rospy.loginfo("move")
         except Exception as e:
