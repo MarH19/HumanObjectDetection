@@ -23,9 +23,7 @@ How to Run:
 		conda activate frankapyenv
 		bash /home/mindlab/franka/frankapy/bash_scripts/start_control_pc.sh -i localhost
 
-3. Specify the Output Folder (PATH) - (line 48 in the code).
-
-4. Run the Program:
+3. Run the Program:
     - Open another terminal:
         conda activate frankapyenv
         source /opt/ros/noetic/setup.bash

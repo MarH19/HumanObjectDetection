@@ -15,12 +15,7 @@ By Maryam Rezayati
 		conda activate frankapyenv
 		bash /home/mindlab/franka/frankapy/bash_scripts/start_control_pc.sh -i localhost
 
-3. run sensor node
-	-open another temrinal
-		source /opt/ros/noetic/setup.bash
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python /home/mindlab/humanObjectDetection/dataLabeling/sensorNode.py
-
-4. run robot node
+3. run robot node
 	-open another terminal 
 		conda activate frankapyenv
 		source /opt/ros/noetic/setup.bash
@@ -28,16 +23,6 @@ By Maryam Rezayati
 		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
 		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/moveRobot.py
 
-5. run save data node
-	-open another terminal
-		source /opt/ros/noetic/setup.bash
-		source /home/mindlab/franka/franka-interface/catkin_ws/devel/setup.bash --extend
-		source /home/mindlab/franka/frankapy/catkin_ws/devel/setup.bash --extend
-	
-		/home/mindlab/miniconda3/envs/frankapyenv/bin/python3 /home/mindlab/humanObjectDetection/frankaRobot/saveDataNode.py
-
-# to chage publish rate of frankastate go to : 
-sudo nano /home/mindlab/franka/franka-interface/catkin_ws/src/franka_ros_interface/launch/franka_ros_interface.launch
 """
 import os
 import sys
