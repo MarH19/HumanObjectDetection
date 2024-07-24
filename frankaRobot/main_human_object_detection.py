@@ -65,7 +65,6 @@ from _util.util import (choose_model_type, choose_robot_motion,
                         load_transformer_classification_model,
                         normalize_window, user_input_choose_from_list)
 from ModelGeneration.majority_voting import (HardVotingClassifier,
-                                             MajorityVotingClassifier,
                                              SoftVotingClassifier)
 from ModelGeneration.model_generation import choose_rnn_model_class
 
@@ -90,7 +89,7 @@ class HumanObjectDetectionNode:
         majority_voting_classifier_class = user_input_choose_from_list(
             [HardVotingClassifier, SoftVotingClassifier], "Majority voting classifier", lambda v: v.__name__)
         self.majority_voting_classifier = majority_voting_classifier_class(
-            model=self.model_classification, number_of_predictions=12)
+            model=self.model_classification, nof_individual_predictions=12, output_size=3)
 
         self.robot_motion_path = choose_robot_motion()
 
