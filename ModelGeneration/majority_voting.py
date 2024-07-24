@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import torch
-import rospy
+#import rospy
 
 
 class MajorityVotingClassifier(ABC):
@@ -30,7 +30,6 @@ class MajorityVotingClassifier(ABC):
 
         with torch.no_grad():
             output = self.model(data)
-            rospy.loginfo(f"output: {output}")
             prob  = torch.nn.functional.sigmoid(output) if self.output_size == 1 else torch.nn.functional.softmax(output, dim=1)            
         self.update_probabilities(prob.detach().cpu())
 
@@ -56,10 +55,11 @@ class SoftVotingClassifier(MajorityVotingClassifier):
         super().__init__(model, nof_individual_predictions, output_size)
 
     def do_majority_voting(self):
+        #print(f"soft voting probability window: {self.probability_window}")
         if self.output_size == 1:
             avg_prob = torch.mean(torch.stack(self.probability_window)).item()
             final_prediction = avg_prob > 0.5
-            rospy.loginfo(f"prob_window: {self.probability_window}")
+            #rospy.loginfo(f"prob_window: {self.probability_window}")
         else:
             average_probabilities = torch.mean(
                 torch.stack(self.probability_window), dim=0)
@@ -73,8 +73,9 @@ class HardVotingClassifier(MajorityVotingClassifier):
         super().__init__(model, nof_individual_predictions, output_size)
 
     def do_majority_voting(self):
+        #print(f"hard voting probability window: {self.probability_window}")
         if self.output_size == 1:
-            ones_count = (self.probability_window.squeeze(1) > 0.5).sum().item()
+            ones_count = (torch.tensor(self.probability_window) > 0.5).sum().item()
             return 1 if ones_count > (len(self.probability_window) / 2) else 0
         else:
             predictions = [torch.argmax(probabilities, dim=1).item()

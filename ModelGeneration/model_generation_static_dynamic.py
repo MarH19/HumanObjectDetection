@@ -384,13 +384,15 @@ if __name__ == '__main__':
         X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, optimizer=optimizer)
 
     # k-fold cross validation for hyperparameters
-    rnn_model_trainer.kFold_cross_validate(k=5)
-    print(
-        f"""Cross-Validation best score reached for:
-            {rnn_model_trainer.hyperparameters.best_hyperparameters.epochs} epochs,
-            {rnn_model_trainer.hyperparameters.best_hyperparameters.learning_rate} learning rate,
-            {rnn_model_trainer.hyperparameters.best_hyperparameters.num_layers} number of layers,
-            {rnn_model_trainer.hyperparameters.best_hyperparameters.hidden_size} hidden size""")
+    #rnn_model_trainer.kFold_cross_validate(k=5)
+    #print(
+    #    f"""Cross-Validation best score reached for:
+    #        {rnn_model_trainer.hyperparameters.best_hyperparameters.epochs} epochs,
+    #        {rnn_model_trainer.hyperparameters.best_hyperparameters.learning_rate} learning rate,
+    #        {rnn_model_trainer.hyperparameters.best_hyperparameters.num_layers} number of layers,
+    #        {rnn_model_trainer.hyperparameters.best_hyperparameters.hidden_size} hidden size""")
+    rnn_model_trainer.hyperparameters.best_hyperparameters = RNNModelHyperParameterSet(
+        hidden_size=24, num_layers=2, epochs=50, learning_rate=0.01, dropout_rate=0.1)
 
     save_hyperparameters(
         f"{model_class.__name__}_{files_suffix}", rnn_model_trainer.hyperparameters.best_hyperparameters, rnn_model_trainer.optimizer, norm_maxes, norm_mins, norm_means, norm_vars)

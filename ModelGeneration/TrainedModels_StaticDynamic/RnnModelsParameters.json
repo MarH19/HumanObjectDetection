@@ -46,5 +46,41 @@
             "dropout_rate": 0.1
         },
         "optimizer": "Adam"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset25ms_step2_SOFTSTATIC_static_c3_soft_dropout",
+        "modification_time": "2024-07-24 13:59:56",
+        "hyperparameters": {
+            "hidden_size": 24,
+            "num_layers": 2,
+            "epochs": 50,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset100ms_step2_maxOffset30_static_c3_soft_dropout",
+        "modification_time": "2024-07-24 15:19:17",
+        "hyperparameters": {
+            "hidden_size": 24,
+            "num_layers": 2,
+            "epochs": 50,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset25ms_step2_maxOffset30_static_c3_soft_dropout",
+        "modification_time": "2024-07-24 15:36:45",
+        "hyperparameters": {
+            "hidden_size": 24,
+            "num_layers": 2,
+            "epochs": 50,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
     }
 ]
