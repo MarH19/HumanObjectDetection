@@ -34,5 +34,17 @@
             "dropout_rate": 0.4
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_sliding_left_offset100ms_step4_static_c3_soft_dropout_50epochs_smallersize",
+        "modification_time": "2024-07-24 13:02:22",
+        "hyperparameters": {
+            "hidden_size": 24,
+            "num_layers": 2,
+            "epochs": 50,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "Adam"
     }
 ]
