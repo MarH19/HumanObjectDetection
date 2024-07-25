@@ -82,5 +82,41 @@
             "dropout_rate": 0.4
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset25ms_step4_dropout",
+        "modification_time": "2024-07-24 17:39:32",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 2,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.4
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset50ms_step4_dropout",
+        "modification_time": "2024-07-24 18:58:26",
+        "hyperparameters": {
+            "hidden_size": 48,
+            "num_layers": 2,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset75ms_step4_dropout",
+        "modification_time": "2024-07-24 23:25:35",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 2,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
     }
 ]
