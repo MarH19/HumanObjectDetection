@@ -161,8 +161,9 @@ accuracies_hard = [{"caption": f"hard voting classifier that evaluates first {l}
                     "accuracy": np.mean(hard_voting_predictions[i] == y_by_contact)} for i, l in enumerate(majority_voting_window_lengths)]
 
 # Save accuracies_soft and accuracies_hard as text files
-np.savetxt(get_repo_root_path() / "Evaluation" / "OfflineTestResults" / f"soft_voting_accuracies_{rnn_model_params['model_name']}.txt", accuracies_soft, fmt='%s')
-np.savetxt(get_repo_root_path() / "Evaluation" / "OfflineTestResults" / f"hard_voting_accuracies_{rnn_model_params['model_name']}.txt", accuracies_hard, fmt='%s')
+model_name = rnn_model_params['model_name'] if model_type == "RNN" else f"Transformer_{transformer_model_path.parent.name}_{transformer_model_path.name}"
+np.savetxt(get_repo_root_path() / "Evaluation" / "OfflineTestResults" / f"soft_voting_accuracies_{model_name}.txt", accuracies_soft, fmt='%s')
+np.savetxt(get_repo_root_path() / "Evaluation" / "OfflineTestResults" / f"hard_voting_accuracies_{model_name}.txt", accuracies_hard, fmt='%s')
 
 print(
     f"\nWindow size: {window_classification_length}, Prediction step size: {prediction_step_size}")
@@ -225,7 +226,7 @@ for i, cm in enumerate(confusion_matrices_hard):
 
 plt.tight_layout()
 fig_soft.tight_layout()
-fig_soft.savefig(get_repo_root_path() / "Evaluation" / "OfflineTestResults" / f"soft_voting_CM_{rnn_model_params['model_name']}.png", bbox_inches='tight')
+fig_soft.savefig(get_repo_root_path() / "Evaluation" / "OfflineTestResults" / f"soft_voting_CM_{model_name}.png", bbox_inches='tight')
 fig_hard.tight_layout()
-fig_hard.savefig(get_repo_root_path() / "Evaluation" / "OfflineTestResults" / f"hard_voting_CM_{rnn_model_params['model_name']}.png", bbox_inches='tight')
+fig_hard.savefig(get_repo_root_path() / "Evaluation" / "OfflineTestResults" / f"hard_voting_CM_{model_name}.png", bbox_inches='tight')
 #plt.show()
