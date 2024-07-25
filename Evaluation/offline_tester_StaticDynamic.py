@@ -101,7 +101,7 @@ y_by_contact = np.array([int(y[y[:, 1] == i][0][0])
 # initialize majority voting classifiers
 # only include classifiers with majority window length <= available time steps in data
 #majority_voting_window_lengths = [8, 10, 12, 15]
-majority_voting_window_lengths = [10, 12, 15, 18]
+majority_voting_window_lengths = [12, 15, 18, 20]
 
 min_steps = min([X_contact_tensor.shape[0]
                 for X_contact_tensor in X_grouped_by_contact])
@@ -160,6 +160,11 @@ accuracies_soft = [{"caption": f"soft voting classifier that evaluates first {l}
                     "accuracy": np.mean(soft_voting_predictions[i] == y_by_contact)} for i, l in enumerate(majority_voting_window_lengths)]
 accuracies_hard = [{"caption": f"hard voting classifier that evaluates first {l} predictions (~{l*5*prediction_step_size}ms w/ step size {prediction_step_size}) per contact",
                     "accuracy": np.mean(hard_voting_predictions[i] == y_by_contact)} for i, l in enumerate(majority_voting_window_lengths)]
+
+# Save accuracies_soft and accuracies_hard as text files
+model_name = rnn_model_params['model_name'] if model_type == "RNN" else f"Transformer_{transformer_model_path.parent.name}_{transformer_model_path.name}"
+np.savetxt(get_repo_root_path() / "Evaluation" / "OfflineTestResults_StaticDynamic" / f"soft_voting_accuracies_{model_name}.txt", accuracies_soft, fmt='%s')
+np.savetxt(get_repo_root_path() / "Evaluation" / "OfflineTestResults_StaticDynamic" / f"hard_voting_accuracies_{model_name}.txt", accuracies_hard, fmt='%s')
 
 print(
     f"\nWindow size: {window_classification_length}, Prediction step size: {prediction_step_size}")
@@ -220,4 +225,9 @@ for i, cm in enumerate(confusion_matrices_hard):
     display_confusion_matrix(cm, axs_hard[i], confusion_matrices_max_val_hard,
                              f'hard voting: first {majority_voting_window_lengths[i]} predictions per contact\nprediction step size: {prediction_step_size}')
 
-plt.show()
+fig_soft.tight_layout()
+fig_hard.tight_layout()
+plt.tight_layout()
+fig_soft.savefig(get_repo_root_path() / "Evaluation" / "OfflineTestResults_StaticDynamic" / f"soft_voting_CM_{model_name}.png", bbox_inches='tight')
+fig_hard.savefig(get_repo_root_path() / "Evaluation" / "OfflineTestResults_StaticDynamic" / f"hard_voting_CM_{model_name}.png", bbox_inches='tight')
+#plt.show()
