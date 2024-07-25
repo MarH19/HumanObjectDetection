@@ -118,5 +118,29 @@
             "dropout_rate": 0.3
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_single_left_offset25ms_step4_dropout",
+        "modification_time": "2024-07-25 15:47:59",
+        "hyperparameters": {
+            "hidden_size": 24,
+            "num_layers": 2,
+            "epochs": 100,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_single_left_offset50ms_step4_dropout",
+        "modification_time": "2024-07-25 16:20:51",
+        "hyperparameters": {
+            "hidden_size": 32,
+            "num_layers": 2,
+            "epochs": 150,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
     }
 ]
