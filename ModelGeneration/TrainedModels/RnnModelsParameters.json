@@ -142,5 +142,17 @@
             "dropout_rate": 0.1
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "GRUModel_single_left_offset75ms_step4_dropout",
+        "modification_time": "2024-07-25 23:40:22",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 3,
+            "epochs": 150,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
     }
 ]
