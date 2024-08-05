@@ -369,8 +369,8 @@ def train_model(model_class, sub_repo, X_file, normalization_mode, optimizer, dr
         files_suffix + "_std" if normalization_mode == "S" else files_suffix)
     files_suffix = files_suffix + "_dropout" if dropout_mode == "D" else files_suffix
 
-    custom_suffix = input("\nOptional file suffix (enter for \"\"): ")
-    files_suffix = files_suffix + custom_suffix
+    #custom_suffix = input("\nOptional file suffix (enter for \"\"): ")
+    #files_suffix = files_suffix + custom_suffix
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('\nUsing device:', device)
@@ -413,7 +413,7 @@ if __name__ == '__main__':
         {"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset100ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
         {"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset5ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
         {"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset15ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset75ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
+        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset75ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
         {"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset100ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
         
         {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset5ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
@@ -432,6 +432,5 @@ if __name__ == '__main__':
     for params in model_generation_params:
         try:
             train_model(params["model_class"], params["sub_folder"], params["X_file"], params["normalization_mode"], params["optimizer"], params["dropout_mode"])
-            print(f"Model training and evaluation completed for {params["model_class"].__name__}, {params["X_file"].name}")
         except:
             pass
