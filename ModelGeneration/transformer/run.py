@@ -35,9 +35,9 @@ if __name__ == '__main__':
               'val_ratio': 0.1,
               # choices={'T', 'C-T'}, help="Network Architecture. Convolution (C)" "Transformers (T)"
               'Net_Type': ['C-T'],
-              'emb_size': 16,
+              'emb_size': 8,
               'dim_ff': 256,
-              'num_heads': 8,
+              'num_heads': 4,
               'Fix_pos_encode': 'tAPE',  # {'tAPE', 'Learn', 'None'}
               'Rel_pos_encode': 'eRPE',  # {'eRPE', 'Vector', 'None'}
               'epochs': 700,
