@@ -250,5 +250,29 @@
             "dropout_rate": 0.2
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset5ms_step1_dropout",
+        "modification_time": "2024-08-06 01:30:30",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset15ms_step1_dropout",
+        "modification_time": "2024-08-06 07:22:18",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 2,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.4
+        },
+        "optimizer": "AdamW"
     }
 ]
