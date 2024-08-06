@@ -68,6 +68,8 @@ from ModelGeneration.majority_voting import (HardVotingClassifier,
                                              SoftVotingClassifier)
 from ModelGeneration.model_generation import choose_rnn_model_class
 
+GREEN = '\033[92m'
+RESET = '\033[0m'
 
 class HumanObjectDetectionNode:
     def __init__(self):
@@ -190,13 +192,19 @@ class HumanObjectDetectionNode:
             if majority_voting_prediction is not None:
                 prediction_duration = rospy.get_time() - start_time
                 rospy.loginfo(
-                    f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(majority_voting_prediction)]}')
+                    GREEN +
+                    f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(majority_voting_prediction)]}' 
+                    + RESET)
 
                 start_time = np.array(start_time).tolist()
                 time_sec = int(start_time)
-                time_nsec = start_time - time_sec
-                self.model_output_msg.data = np.array([time_sec - self.big_time_digits, time_nsec,
-                                                       prediction_duration, 1, majority_voting_prediction], dtype=np.complex128)
+                time_nsec = start_time - time_sec                
+
+                flattened_majority_voting_probs = torch.cat(self.majority_voting_classifier.probability_window).numpy().flatten()
+                self.model_output_msg.data = np.concatenate([
+                    [time_sec - self.big_time_digits, time_nsec, prediction_duration, 1, majority_voting_prediction],
+                    flattened_majority_voting_probs
+                ])
                 self.model_pub.publish(self.model_output_msg)
 
         self.classification_counter = (self.classification_counter + 1) % 3
