@@ -90,8 +90,9 @@ class HumanObjectDetectionNode:
 
         majority_voting_classifier_class = user_input_choose_from_list(
             [HardVotingClassifier, SoftVotingClassifier], "Majority voting classifier", lambda v: v.__name__)
+        nof_individual_predictions = int(user_input_choose_from_list([8, 10, 12, 15], "Majority voting: umber of predictions"))
         self.majority_voting_classifier = majority_voting_classifier_class(
-            model=self.model_classification, nof_individual_predictions=12, output_size=3)
+            model=self.model_classification, nof_individual_predictions=nof_individual_predictions, output_size=3)
 
         self.robot_motion_path = choose_robot_motion()
 
