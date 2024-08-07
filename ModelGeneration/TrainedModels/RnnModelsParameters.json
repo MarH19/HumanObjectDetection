@@ -274,5 +274,113 @@
             "dropout_rate": 0.4
         },
         "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset50ms_step1_dropout",
+        "modification_time": "2024-08-06 12:37:05",
+        "hyperparameters": {
+            "hidden_size": 32,
+            "num_layers": 2,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.2
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset75ms_step1_dropout",
+        "modification_time": "2024-08-06 21:39:07",
+        "hyperparameters": {
+            "hidden_size": 48,
+            "num_layers": 2,
+            "epochs": 200,
+            "learning_rate": 0.001,
+            "dropout_rate": 0.2
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset100ms_step1_dropout",
+        "modification_time": "2024-08-07 01:45:45",
+        "hyperparameters": {
+            "hidden_size": 48,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.001,
+            "dropout_rate": 0.2
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset5ms_step4_dropout",
+        "modification_time": "2024-08-07 03:14:31",
+        "hyperparameters": {
+            "hidden_size": 48,
+            "num_layers": 2,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.4
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_sliding_left_offset15ms_step4_dropout",
+        "modification_time": "2024-08-07 04:43:57",
+        "hyperparameters": {
+            "hidden_size": 48,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_single_left_offset25ms_step4_dropout",
+        "modification_time": "2024-08-07 05:24:40",
+        "hyperparameters": {
+            "hidden_size": 16,
+            "num_layers": 3,
+            "epochs": 100,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_single_left_offset50ms_step4_dropout",
+        "modification_time": "2024-08-07 06:05:28",
+        "hyperparameters": {
+            "hidden_size": 40,
+            "num_layers": 4,
+            "epochs": 150,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.3
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_single_left_offset75ms_step4_dropout",
+        "modification_time": "2024-08-07 06:44:23",
+        "hyperparameters": {
+            "hidden_size": 32,
+            "num_layers": 2,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
+    },
+    {
+        "model_name": "LSTMModel_single_left_offset100ms_step4_dropout",
+        "modification_time": "2024-08-07 07:22:09",
+        "hyperparameters": {
+            "hidden_size": 48,
+            "num_layers": 3,
+            "epochs": 200,
+            "learning_rate": 0.01,
+            "dropout_rate": 0.1
+        },
+        "optimizer": "AdamW"
     }
 ]
