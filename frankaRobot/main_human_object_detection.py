@@ -71,6 +71,7 @@ from ModelGeneration.model_generation import choose_rnn_model_class
 GREEN = '\033[92m'
 RESET = '\033[0m'
 
+
 class HumanObjectDetectionNode:
     def __init__(self):
         rospy.init_node('human_object_detection_node', disable_signals=True)
@@ -90,7 +91,8 @@ class HumanObjectDetectionNode:
 
         majority_voting_classifier_class = user_input_choose_from_list(
             [HardVotingClassifier, SoftVotingClassifier], "Majority voting classifier", lambda v: v.__name__)
-        nof_individual_predictions = int(user_input_choose_from_list([8, 10, 12, 15], "Majority voting: umber of predictions"))
+        nof_individual_predictions = int(user_input_choose_from_list(
+            [8, 10, 12, 15], "Majority voting: umber of predictions"))
         self.majority_voting_classifier = majority_voting_classifier_class(
             model=self.model_classification, nof_individual_predictions=nof_individual_predictions, output_size=3)
 
@@ -99,6 +101,7 @@ class HumanObjectDetectionNode:
         self.classification_window = np.zeros(
             [self.window_classification_length, self.classification_model_input_size])
         self.model_output_msg = Floats()
+        self.classification_window_msg = Floats()
 
         self.classification_counter = 0
         self.has_contact = False
@@ -115,6 +118,8 @@ class HumanObjectDetectionNode:
                          data_class=numpy_msg(Floats), callback=self.contact_cb)
         self.model_pub = rospy.Publisher(
             "/model_output", numpy_msg(Floats), queue_size=1)
+        self.classification_window_pub = rospy.Publisher(
+            "/classification_window", numpy_msg(Floats), queue_size=1)
 
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
@@ -189,23 +194,24 @@ class HumanObjectDetectionNode:
             majority_voting_prediction = self.majority_voting_classifier.predict(
                 classification_tensor)
 
+            flattened_classification_tensor = classification_tensor.numpy().flatten()
+            self.classification_window_msg.data = flattened_classification_tensor
+            self.classification_window_pub.publish(self.classification_window_msg)
+
             # publish prediction if majority voting classifier has predicted
             if majority_voting_prediction is not None:
                 prediction_duration = rospy.get_time() - start_time
                 rospy.loginfo(
                     GREEN +
-                    f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(majority_voting_prediction)]}' 
+                    f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(majority_voting_prediction)]}'
                     + RESET)
 
                 start_time = np.array(start_time).tolist()
                 time_sec = int(start_time)
-                time_nsec = start_time - time_sec                
+                time_nsec = start_time - time_sec
 
-                flattened_majority_voting_probs = torch.cat(self.majority_voting_classifier.probability_window).numpy().flatten()
-                self.model_output_msg.data = np.concatenate([
-                    [time_sec - self.big_time_digits, time_nsec, prediction_duration, 1, majority_voting_prediction],
-                    flattened_majority_voting_probs
-                ])
+                self.model_output_msg.data = np.array([time_sec - self.big_time_digits, time_nsec,
+                                                       prediction_duration, 1, majority_voting_prediction])
                 self.model_pub.publish(self.model_output_msg)
 
         self.classification_counter = (self.classification_counter + 1) % 3
