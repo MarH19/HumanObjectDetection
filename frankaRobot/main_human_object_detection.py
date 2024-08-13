@@ -183,6 +183,11 @@ class HumanObjectDetectionNode:
         # make classification prediction every 3rd time (classification_counter = 0, 1, 2)
         # only make predictions if majority voting classifier has not predicted yet (for this contact)
         if self.classification_counter == 2 and self.majority_voting_classifier.get_has_predicted() == False:
+            start_time = np.array(start_time).tolist()
+            time_sec = int(start_time)
+            time_nsec = start_time - time_sec
+            time_sec = time_sec - self.big_time_digits
+
             if self.model_type == "RNN":
                 classification_tensor = torch.tensor(
                     self.classification_window, dtype=torch.float32).unsqueeze(0).to(self.device)
@@ -194,9 +199,10 @@ class HumanObjectDetectionNode:
             majority_voting_prediction = self.majority_voting_classifier.predict(
                 classification_tensor)
 
-            flattened_classification_tensor = classification_tensor.numpy().flatten()
-            self.classification_window_msg.data = flattened_classification_tensor
-            self.classification_window_pub.publish(self.classification_window_msg)
+            flattened_classification_window = classification_tensor.numpy().flatten()
+            self.classification_window_msg.data = np.concatenate([np.array([time_sec, time_nsec]), flattened_classification_window])
+            self.classification_window_pub.publish(
+                self.classification_window_msg)
 
             # publish prediction if majority voting classifier has predicted
             if majority_voting_prediction is not None:
@@ -206,12 +212,8 @@ class HumanObjectDetectionNode:
                     f'prediction duration: {prediction_duration}, classification prediction: {self.labels_classification[int(majority_voting_prediction)]}'
                     + RESET)
 
-                start_time = np.array(start_time).tolist()
-                time_sec = int(start_time)
-                time_nsec = start_time - time_sec
-
-                self.model_output_msg.data = np.array([time_sec - self.big_time_digits, time_nsec,
-                                                       prediction_duration, 1, majority_voting_prediction])
+                self.model_output_msg.data = np.array(
+                    [time_sec, time_nsec, prediction_duration, 1, majority_voting_prediction, self.majority_voting_classifier.nof_individual_predictions])
                 self.model_pub.publish(self.model_output_msg)
 
         self.classification_counter = (self.classification_counter + 1) % 3

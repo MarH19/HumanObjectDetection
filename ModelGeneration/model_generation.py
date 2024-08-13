@@ -315,17 +315,17 @@ def choose_dropout_mode():
     return user_input_choose_from_list(dropout_modes, "Dropout Mode", lambda m: m["caption"])["key"]
 
 
-def train_model(model_class, sub_repo, X_file, normalization_mode, optimizer, dropout_mode):
+if __name__ == '__main__':
+    load_dotenv(find_dotenv())
 
-    #model_class = choose_rnn_model_class()
-    #sub_repo, X_file = choose_dataset()
-    #normalization_mode = choose_normalization_mode()
-    #optimizer = choose_optimizer()
-    #dropout_mode = choose_dropout_mode()
+    model_class = choose_rnn_model_class()
+    sub_repo, X_file = choose_dataset()
+    normalization_mode = choose_normalization_mode()
+    optimizer = choose_optimizer()
+    dropout_mode = choose_dropout_mode()
 
     X = np.load(str(X_file.absolute()))
-    y = np.load(
-        str((X_file.parent / X_file.name.replace("x_", "y_")).absolute()))
+    y = np.load(str((X_file.parent / X_file.name.replace("x_", "y_")).absolute()))
 
     # filter X features to fit model
     target_torque = ['tau_J0', 'tau_J1', 'tau_J2',
@@ -369,8 +369,8 @@ def train_model(model_class, sub_repo, X_file, normalization_mode, optimizer, dr
         files_suffix + "_std" if normalization_mode == "S" else files_suffix)
     files_suffix = files_suffix + "_dropout" if dropout_mode == "D" else files_suffix
 
-    #custom_suffix = input("\nOptional file suffix (enter for \"\"): ")
-    #files_suffix = files_suffix + custom_suffix
+    custom_suffix = input("\nOptional file suffix (enter for \"\"): ")
+    files_suffix = files_suffix + custom_suffix
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('\nUsing device:', device)
@@ -399,38 +399,3 @@ def train_model(model_class, sub_repo, X_file, normalization_mode, optimizer, dr
     # train and evaluate the model
     rnn_model_trainer.train_model(file_suffix=files_suffix)
     rnn_model_trainer.evaluate_model(file_suffix=files_suffix)
-
-if __name__ == '__main__':
-    load_dotenv(find_dotenv())
-
-    sub_folder = Path(os.environ.get("DATASET_REPO_ROOT_PATH")) / "processedData" / "complete"
-    
-    model_generation_params = [
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset5ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset15ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset50ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset75ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset100ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset5ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset15ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset75ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": GRUModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset100ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        
-        #{"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset5ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset15ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        #{"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset50ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset75ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset100ms_step1.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset5ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_sliding_left_offset15ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset25ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset50ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset75ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-        {"model_class": LSTMModel, "sub_folder": sub_folder, "X_file": sub_folder / "x_single_left_offset100ms_step4.npy", "normalization_mode": "", "optimizer": "AdamW", "dropout_mode": "D"},
-    ]
-
-    for params in model_generation_params:
-        try:
-            train_model(params["model_class"], params["sub_folder"], params["X_file"], params["normalization_mode"], params["optimizer"], params["dropout_mode"])
-        except:
-            pass

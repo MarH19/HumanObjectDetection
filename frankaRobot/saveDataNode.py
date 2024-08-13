@@ -79,7 +79,8 @@ class LogData:
         all_data_path = str((self.PATH / 'all_data.txt').absolute())
         true_label_path = str((self.PATH / 'true_label.csv').absolute())
         model_results_path = str((self.PATH / 'model_result.csv').absolute())
-        classification_windows_path = str((self.PATH / 'classification_windows.csv').absolute())
+        classification_windows_path = str(
+            (self.PATH / 'classification_windows.csv').absolute())
         meta_path = str((self.PATH / 'meta.json').absolute())
 
         self.all_data_file = open(all_data_path, 'w')
@@ -90,9 +91,10 @@ class LogData:
 
         self.model_results_file = csv.writer(open(model_results_path, 'w'))
         self.model_results_file.writerow(
-            ('Time_sec', 'Time_nsec', 'prediction_duration', 'contact', 'contact_class_prediction'))
-        
-        self.classification_windows_file = csv.writer(open(classification_windows_path, 'w'))
+            ('Time_sec', 'Time_nsec', 'prediction_duration', 'contact', 'contact_class_prediction', 'majority_voting_nof_individual_predictions'))
+
+        self.classification_windows_file = csv.writer(
+            open(classification_windows_path, 'w'))
 
         meta_data = {
             "date": datetime.now().strftime('%Y-%m-%d'),
