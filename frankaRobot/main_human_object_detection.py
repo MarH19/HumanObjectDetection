@@ -44,6 +44,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 import signal
+import threading
 from threading import Event
 from typing import Type
 
@@ -75,6 +76,7 @@ RESET = '\033[0m'
 class HumanObjectDetectionNode:
     def __init__(self):
         rospy.init_node('human_object_detection_node', disable_signals=True)
+
         self.shutdown_requested = Event()
 
         self.classification_model_input_size = 21
@@ -113,10 +115,18 @@ class HumanObjectDetectionNode:
 
         self.contact_timer = None
 
-        rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state",
-                         data_class=RobotState, callback=self.contact_predictions)
-        rospy.Subscriber(name="/contactTimeIndex",
-                         data_class=numpy_msg(Floats), callback=self.contact_cb)
+
+        self.robot_state_thread = threading.Thread(target=self.robot_state_listener)
+        self.contact_thread = threading.Thread(target=self.contact_listener)       
+        self.robot_state_thread.daemon = True
+        self.contact_thread.daemon = True
+        self.robot_state_thread.start()
+        self.contact_thread.start()
+
+        #rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state",
+        #                 data_class=RobotState, callback=self.contact_predictions)
+        #rospy.Subscriber(name="/contactTimeIndex",
+        #                 data_class=numpy_msg(Floats), callback=self.contact_cb)
         self.model_pub = rospy.Publisher(
             "/model_output", numpy_msg(Floats), queue_size=1)
         self.classification_window_pub = rospy.Publisher(
@@ -124,6 +134,16 @@ class HumanObjectDetectionNode:
 
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
+
+    def robot_state_listener(self):
+        rospy.Subscriber(name="/robot_state_publisher_node_1/robot_state",
+                         data_class=RobotState, callback=self.contact_predictions)
+        rospy.spin() 
+
+    def contact_listener(self):
+        rospy.Subscriber(name="/contactTimeIndex",
+                         data_class=numpy_msg(Floats), callback=self.contact_cb)
+        rospy.spin()
 
     def signal_handler(self, signum, frame):
         rospy.loginfo("Shutdown signal received.")
@@ -158,7 +178,7 @@ class HumanObjectDetectionNode:
         if self.contact_timer is not None:
             self.contact_timer.shutdown()
         self.contact_timer = rospy.Timer(
-            rospy.Duration(0.0025), self.contact_timer_callback)
+            rospy.Duration(0.015), self.contact_timer_callback)
 
     def contact_predictions(self, data):
         if self.shutdown_requested.is_set():
