@@ -104,6 +104,7 @@ class HumanObjectDetectionNode:
         self.classification_window_msg = Floats()
 
         self.classification_counter = 0
+        self.majority_vote_counter = 0
         self.has_contact = False
 
         self.fa = FrankaArm(init_node=False)
@@ -182,7 +183,8 @@ class HumanObjectDetectionNode:
 
         # make classification prediction every 3rd time (classification_counter = 0, 1, 2)
         # only make predictions if majority voting classifier has not predicted yet (for this contact)
-        if self.classification_counter == 2 and self.majority_voting_classifier.get_has_predicted() == False:
+        has_predicted_for_contact = self.majority_voting_classifier.get_has_predicted()
+        if self.classification_counter == 2 and not has_predicted_for_contact:
             start_time = np.array(start_time).tolist()
             time_sec = int(start_time)
             time_nsec = start_time - time_sec
@@ -200,7 +202,8 @@ class HumanObjectDetectionNode:
                 classification_tensor)
 
             flattened_classification_window = classification_tensor.numpy().flatten()
-            self.classification_window_msg.data = np.concatenate([np.array([time_sec, time_nsec]), flattened_classification_window])
+            self.classification_window_msg.data = np.concatenate([np.array(
+                [time_sec, time_nsec, self.majority_vote_counter]), flattened_classification_window])
             self.classification_window_pub.publish(
                 self.classification_window_msg)
 
@@ -215,6 +218,8 @@ class HumanObjectDetectionNode:
                 self.model_output_msg.data = np.array(
                     [time_sec, time_nsec, prediction_duration, 1, majority_voting_prediction, self.majority_voting_classifier.nof_individual_predictions])
                 self.model_pub.publish(self.model_output_msg)
+
+                self.majority_vote_counter += 1
 
         self.classification_counter = (self.classification_counter + 1) % 3
 
