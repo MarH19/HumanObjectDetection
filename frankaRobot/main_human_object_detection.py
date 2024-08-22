@@ -115,7 +115,6 @@ class HumanObjectDetectionNode:
 
         self.contact_timer = None
 
-
         self.robot_state_thread = threading.Thread(target=self.robot_state_listener)
         self.contact_thread = threading.Thread(target=self.contact_listener)       
         self.robot_state_thread.daemon = True
