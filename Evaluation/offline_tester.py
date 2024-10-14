@@ -42,6 +42,11 @@ elif model_type == "Transformer":
     model_classification, transformer_config = load_transformer_classification_model(
         transformer_model_path, classification_model_input_size, len(labels_classification), window_classification_length)
 
+trainable_params = sum(p.numel() for p in model_classification.parameters() if p.requires_grad)
+non_trainable_params = sum(p.numel() for p in model_classification.parameters() if not p.requires_grad)
+
+print(f"\nTrainable parameters: {trainable_params}")
+print(f"Non-trainable parameters: {non_trainable_params}")
 
 _, X_file = choose_dataset()
 
@@ -80,7 +85,6 @@ for i, x_i in enumerate(X):
         x_i, rnn_model_params if model_type == "RNN" else transformer_config)
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
 model_classification = model_classification.to(device)
 model_classification.eval()
 
